@@ -5,6 +5,8 @@ import { Sidebar } from '../components/Sidebar';
 import { AdminManagerCrud } from '../components/AdminManagerCrud';
 import { ManagerApproval } from '../components/ManagerApproval';
 import { OrganizationList } from '../components/OrganizationList';
+import { UserDashboard } from '../components/UserDashboard';
+import { OrgDashboard } from '../components/OrgDashboard';
 import { 
   Users, 
   Building2, 
@@ -19,6 +21,9 @@ export const DashboardPage = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const isUserRole = user?.entityModel === 'User' || user?.role === 'patient' || user?.role === 'doctor';
+  const isOrgRole = user?.entityModel === 'Organization' || ['hospital', 'clinic', 'laboratory'].includes(user?.role);
+
   const [stats, setStats] = useState({
     managersCount: 0,
     pendingOrgsCount: 0,
@@ -29,7 +34,8 @@ export const DashboardPage = () => {
   const fetchStats = async () => {
     try {
       setIsRefreshing(true);
-      
+      if (isUserRole || isOrgRole) return;
+
       let mCount = 0;
       if (user?.role === 'admin') {
         const resM = await fetch('/admin/managers?page=1');
@@ -75,7 +81,6 @@ export const DashboardPage = () => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-main)' }}>
-      {/* Background Patterns */}
       <div className="bg-ambient-pattern" />
       <div className="bg-ambient-glow-1" />
       <div className="bg-ambient-glow-2" />
@@ -87,15 +92,17 @@ export const DashboardPage = () => {
         isRefreshing={isRefreshing} 
       />
 
-      {/* Main Layout with Sidebar */}
+      {/* Main Layout */}
       <div style={{ display: 'flex', flex: 1, position: 'relative', zIndex: 10 }}>
-        <Sidebar 
-          role={user?.role || 'manager'} 
-          activeTab={activeTab} 
-          setActiveTab={setActiveTab} 
-          collapsed={collapsed}
-          setCollapsed={setCollapsed}
-        />
+        {!isUserRole && !isOrgRole && (
+          <Sidebar 
+            role={user?.role || 'manager'} 
+            activeTab={activeTab} 
+            setActiveTab={setActiveTab} 
+            collapsed={collapsed}
+            setCollapsed={setCollapsed}
+          />
+        )}
 
         {/* Content Body */}
         <main style={{
@@ -105,121 +112,109 @@ export const DashboardPage = () => {
           margin: '0 auto',
           width: '100%'
         }}>
-          {activeTab === 'overview' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              {/* Welcome Header */}
-              <div>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '4px' }}>
-                  Welcome back, {user?.username}! 👋
-                </h1>
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                  ArogyaX Operational Dashboard • Role: <strong style={{ color: '#0284c7' }}>{user?.role?.toUpperCase()}</strong>
-                </p>
-              </div>
-
-              {/* White Metrics Cards */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-                gap: '20px'
-              }}>
-                {user?.role === 'admin' && (
-                  <div className="white-card" style={{ padding: '20px 24px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                        Active Managers
-                      </span>
-                      <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#e0f2fe', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0284c7' }}>
-                        <Users size={20} />
-                      </div>
-                    </div>
-                    <div style={{ fontSize: '2.1rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                      {stats.managersCount}
-                    </div>
-                    <p style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: '4px', fontWeight: 500 }}>
-                      Provisioned via Admin Manager CRUD
+          {/* USER DASHBOARD (PATIENT & DOCTOR) */}
+          {isUserRole ? (
+            <UserDashboard />
+          ) : isOrgRole ? (
+            /* ORGANIZATION DASHBOARD */
+            <OrgDashboard />
+          ) : (
+            /* ADMIN & MANAGER DASHBOARD */
+            <>
+              {activeTab === 'overview' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  <div>
+                    <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '4px' }}>
+                      Welcome back, {user?.username}! 👋
+                    </h1>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                      ArogyaX Operational Dashboard • Role: <strong style={{ color: '#0284c7' }}>{user?.role?.toUpperCase()}</strong>
                     </p>
                   </div>
-                )}
 
-                <div className="white-card" style={{ padding: '20px 24px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      Pending Approvals
-                    </span>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ea580c' }}>
-                      <Clock size={20} />
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                    gap: '20px'
+                  }}>
+                    {user?.role === 'admin' && (
+                      <div className="white-card" style={{ padding: '20px 24px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                            Active Managers
+                          </span>
+                          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#e0f2fe', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0284c7' }}>
+                            <Users size={20} />
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '2.1rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                          {stats.managersCount}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="white-card" style={{ padding: '20px 24px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                          Pending Approvals
+                        </span>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ea580c' }}>
+                          <Clock size={20} />
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '2.1rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                        {stats.pendingOrgsCount}
+                      </div>
+                    </div>
+
+                    <div className="white-card" style={{ padding: '20px 24px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                          Verified Entities
+                        </span>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#059669' }}>
+                          <CheckCircle2 size={20} />
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '2.1rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                        {stats.approvedOrgsCount} / {stats.totalOrgsCount}
+                      </div>
                     </div>
                   </div>
-                  <div style={{ fontSize: '2.1rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                    {stats.pendingOrgsCount}
-                  </div>
-                  <p style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: '4px', fontWeight: 500 }}>
-                    Healthcare entities awaiting review
-                  </p>
-                </div>
 
-                <div className="white-card" style={{ padding: '20px 24px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      Verified Entities
-                    </span>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#059669' }}>
-                      <CheckCircle2 size={20} />
+                  <div className="white-panel" style={{ padding: '24px' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '14px' }}>Quick Workspace Actions</h3>
+                    <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+                      {user?.role === 'admin' && (
+                        <button onClick={() => setActiveTab('managers')} className="btn-primary">
+                          <Users size={16} />
+                          <span>Manage Manager Accounts</span>
+                        </button>
+                      )}
+                      <button onClick={() => setActiveTab('pending')} className="btn-success">
+                        <Clock size={16} />
+                        <span>Review Pending Verifications ({stats.pendingOrgsCount})</span>
+                      </button>
+                      <button onClick={() => setActiveTab('organizations')} className="btn-secondary">
+                        <Building2 size={16} />
+                        <span>View All Organizations</span>
+                      </button>
                     </div>
                   </div>
-                  <div style={{ fontSize: '2.1rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                    {stats.approvedOrgsCount} / {stats.totalOrgsCount}
-                  </div>
-                  <p style={{ fontSize: '0.78rem', color: 'var(--text-dim)', marginTop: '4px', fontWeight: 500 }}>
-                    Active verified organizations
-                  </p>
                 </div>
-              </div>
+              )}
 
-              {/* Quick Actions Bar */}
-              <div className="white-panel" style={{ padding: '24px' }}>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '14px', color: 'var(--text-main)' }}>Quick Workspace Actions</h3>
-                <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
-                  {user?.role === 'admin' && (
-                    <button onClick={() => setActiveTab('managers')} className="btn-primary">
-                      <Users size={16} />
-                      <span>Manage Manager Accounts</span>
-                    </button>
-                  )}
-                  <button onClick={() => setActiveTab('pending')} className="btn-success">
-                    <Clock size={16} />
-                    <span>Review Pending Applications ({stats.pendingOrgsCount})</span>
-                  </button>
-                  <button onClick={() => setActiveTab('organizations')} className="btn-secondary">
-                    <Building2 size={16} />
-                    <span>View All Organizations</span>
-                  </button>
+              {activeTab === 'managers' && user?.role === 'admin' && <AdminManagerCrud />}
+              {activeTab === 'pending' && <ManagerApproval />}
+              {activeTab === 'organizations' && <OrganizationList />}
+              {(activeTab === 'audit' || activeTab === 'reports') && (
+                <div className="white-panel" style={{ padding: '40px', textAlign: 'center' }}>
+                  <ShieldCheck size={48} color="#0284c7" style={{ margin: '0 auto 12px auto' }} />
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '6px' }}>Security Audit & Activity Logs</h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>System operational logs are monitored in real time.</p>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'managers' && user?.role === 'admin' && (
-            <AdminManagerCrud />
-          )}
-
-          {activeTab === 'pending' && (
-            <ManagerApproval />
-          )}
-
-          {activeTab === 'organizations' && (
-            <OrganizationList />
-          )}
-
-          {(activeTab === 'audit' || activeTab === 'reports') && (
-            <div className="white-panel" style={{ padding: '40px', textAlign: 'center' }}>
-              <ShieldCheck size={48} color="#0284c7" style={{ margin: '0 auto 12px auto' }} />
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '6px' }}>Security Audit & Activity Logs</h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                System operational logs, authentication events, and organization verification timestamps are logged.
-              </p>
-            </div>
+              )}
+            </>
           )}
         </main>
       </div>

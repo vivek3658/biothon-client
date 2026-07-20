@@ -4,29 +4,76 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const getAuthHeaders = (hasBody = true) => {
+    const token = localStorage.getItem('token');
+    const headers = {};
+    if (hasBody) {
+      headers['Content-Type'] = 'application/json';
+    }
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+  };
 
   const fetchCurrentUser = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/employee-auth/me', {
-        headers: { 'Content-Type': 'application/json' }
-      });
+      const headers = getAuthHeaders(false);
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.identity && data.identity.role) {
-          setUser(data.identity);
-        } else {
-          setUser(null);
+      // 1. Try User Auth (Patient / Doctor)
+      let res = await fetch('/user/me', { headers, credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.account) {
+          setUser({
+            id: data.account._id,
+            username: data.userProfile?.name || data.account.email,
+            role: data.account.role,
+            entityModel: 'User'
+          });
+          setUserProfile(data.userProfile);
+          return;
         }
-      } else {
-        setUser(null);
       }
-    } catch (err) {
-      console.error('Failed to fetch user session:', err);
+
+      // 2. Try Org Auth
+      res = await fetch('/org/me', { headers, credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.account) {
+          setUser({
+            id: data.account.accountId,
+            username: data.account.profile?.name || data.account.email,
+            role: data.account.role,
+            entityModel: 'Organization'
+          });
+          setUserProfile(data.account.profile);
+          return;
+        }
+      }
+
+      // 3. Try Employee Auth
+      res = await fetch('/employee-auth/me', { headers, credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.identity?.role) {
+          setUser(data.identity);
+          setUserProfile(null);
+          return;
+        }
+      }
+
       setUser(null);
+      setUserProfile(null);
+    } catch (err) {
+      console.error('Failed to fetch session identity:', err);
+      setUser(null);
+      setUserProfile(null);
     } finally {
       setLoading(false);
     }
@@ -36,42 +83,77 @@ export const AuthProvider = ({ children }) => {
     fetchCurrentUser();
   }, []);
 
-  const login = async (username, password) => {
+  const loginEmployee = async (username, password) => {
     setError(null);
-    try {
-      const response = await fetch('/employee-auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
+    const res = await fetch('/employee-auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Employee login failed');
+    if (data.token) localStorage.setItem('token', data.token);
+    await fetchCurrentUser();
+    return data;
+  };
 
-      const data = await response.json();
+  const loginUser = async (email, password) => {
+    setError(null);
+    const res = await fetch('/user/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'User login failed');
+    if (data.token) localStorage.setItem('token', data.token);
+    await fetchCurrentUser();
+    return data;
+  };
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Invalid username or password');
-      }
-
-      // Re-fetch current user profile to establish session state
-      await fetchCurrentUser();
-      return { success: true, role: data.role };
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
+  const loginOrg = async (email, password) => {
+    setError(null);
+    const res = await fetch('/org/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Organization login failed');
+    if (data.token) localStorage.setItem('token', data.token);
+    await fetchCurrentUser();
+    return data;
   };
 
   const logout = async () => {
     try {
-      await fetch('/employee-auth/logout', { method: 'POST' });
+      const headers = getAuthHeaders(false);
+      await fetch('/employee-auth/logout', { method: 'POST', headers, credentials: 'include' });
+      await fetch('/org/logout', { method: 'POST', headers, credentials: 'include' });
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
+      localStorage.removeItem('token');
       setUser(null);
+      setUserProfile(null);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, logout, refreshUser: fetchCurrentUser }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      userProfile, 
+      loading, 
+      error, 
+      loginEmployee, 
+      loginUser, 
+      loginOrg,
+      logout, 
+      refreshUser: fetchCurrentUser 
+    }}>
       {children}
     </AuthContext.Provider>
   );
