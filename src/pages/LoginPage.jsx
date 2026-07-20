@@ -17,6 +17,18 @@ import {
 } from 'lucide-react';
 import logoImg from '../assets/logo.jpg';
 
+// Helper for safe response handling
+const safeParseResponse = async (res) => {
+  const text = await res.text();
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (e) {
+    data = { error: `Server error (${res.status}): ${text || 'Empty response'}` };
+  }
+  return { status: res.status, ok: res.ok, data };
+};
+
 export const LoginPage = () => {
   const { loginEmployee, loginUser, loginOrg } = useAuth();
   const [activePortal, setActivePortal] = useState('user'); // 'user' | 'org' | 'employee'
@@ -103,7 +115,7 @@ export const LoginPage = () => {
       setSuccessMessage('');
       await loginEmployee(empUsername.trim(), empPassword);
     } catch (err) {
-      setErrorMessage(err.message || 'Authentication failed.');
+      setErrorMessage(err.message || 'Employee authentication failed. Check credentials.');
     } finally {
       setIsSubmitting(false);
     }
@@ -118,10 +130,8 @@ export const LoginPage = () => {
     try {
       setIsSubmitting(true);
       if (userMode === 'login') {
-        // Direct Login
         await loginUser(userEmail.trim(), userPassword);
       } else {
-        // Registration Flow:
         // Step 1: Create Base Account
         const res1 = await fetch('/auth/create-account', {
           method: 'POST',
@@ -129,9 +139,9 @@ export const LoginPage = () => {
           credentials: 'include',
           body: JSON.stringify({ email: userEmail.trim(), password: userPassword, entityModel: 'User' })
         });
-        const data1 = await res1.json();
-        if (!res1.ok && !data1.accountId) {
-          throw new Error(data1.error || 'Account creation failed');
+        const { ok: ok1, data: data1 } = await safeParseResponse(res1);
+        if (!ok1 && !data1.accountId) {
+          throw new Error(data1.error || 'Account registration failed.');
         }
 
         const token = data1.token || localStorage.getItem('token');
@@ -166,19 +176,17 @@ export const LoginPage = () => {
           })
         });
 
-        const data2 = await res2.json();
-        if (!res2.ok) {
-          throw new Error(data2.error || data2.details || 'User profile completion failed');
+        const { ok: ok2, data: data2 } = await safeParseResponse(res2);
+        if (!ok2) {
+          throw new Error(data2.error || data2.details || 'User profile completion failed.');
         }
 
         if (data2.token) localStorage.setItem('token', data2.token);
-
-        // Step 3: Log in user & transition to Dashboard
         await loginUser(userEmail.trim(), userPassword);
       }
     } catch (err) {
       console.error('User Auth Error:', err);
-      setErrorMessage(err.message || 'An error occurred during authentication.');
+      setErrorMessage(err.message || 'Authentication error occurred.');
     } finally {
       setIsSubmitting(false);
     }
@@ -201,9 +209,9 @@ export const LoginPage = () => {
           credentials: 'include',
           body: JSON.stringify({ email: orgEmail.trim(), password: orgPassword, entityModel: 'Organization' })
         });
-        const data1 = await res1.json();
-        if (!res1.ok && !data1.accountId) {
-          throw new Error(data1.error || 'Account creation failed');
+        const { ok: ok1, data: data1 } = await safeParseResponse(res1);
+        if (!ok1 && !data1.accountId) {
+          throw new Error(data1.error || 'Organization account creation failed.');
         }
 
         const token = data1.token || localStorage.getItem('token');
@@ -218,488 +226,452 @@ export const LoginPage = () => {
           credentials: 'include',
           body: JSON.stringify({
             accountId: data1.accountId,
-            name: orgName || 'Healthcare Facility',
-            role: facilityType || 'hospital',
-            contactNumber: contactNumber || '+91 9876543210',
+            email: orgEmail.trim(),
+            name: orgName || 'Organization',
+            facilityType,
+            contactNumber: contactNumber || '9999999999',
             location: {
-              buildingNo: orgBuilding || '1',
-              floorNo: 0,
-              landmark: orgLandmark || 'City Center',
+              buildingNo: orgBuilding || '',
+              landmark: orgLandmark || '',
               city: orgCity || 'New Delhi',
               state: orgState || 'Delhi',
               pincode: orgPincode || '110001'
             },
             coordinates: [parseFloat(orgLng) || 77.2090, parseFloat(orgLat) || 28.6139],
-            organizationCertificateNo: orgCertNo || `REG-${Date.now()}`,
-            organizationCertificateUrl: orgCertUrl || 'https://example.com/cert.pdf',
-            workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-            specialities: ['General Medicine']
+            organizationCertificateNo: orgCertNo || `ORG-CERT-${Date.now()}`,
+            organizationCertificateUrl: orgCertUrl || 'https://example.com/org-cert.pdf'
           })
         });
-        const data2 = await res2.json();
-        if (!res2.ok) throw new Error(data2.error || 'Profile submission failed');
 
-        setSuccessMessage('Organization registered and submitted for Manager approval! You can now log in.');
-        setOrgMode('login');
+        const { ok: ok2, data: data2 } = await safeParseResponse(res2);
+        if (!ok2) {
+          throw new Error(data2.error || data2.details || 'Organization profile completion failed.');
+        }
+
+        if (data2.token) localStorage.setItem('token', data2.token);
+        await loginOrg(orgEmail.trim(), orgPassword);
       }
     } catch (err) {
-      setErrorMessage(err.message || 'Organization authentication failed.');
+      console.error('Org Auth Error:', err);
+      setErrorMessage(err.message || 'Organization authentication error occurred.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: '#f8fafc',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '24px 16px',
-      position: 'relative'
-    }}>
-      <div className="bg-ambient-pattern" />
-      <div className="bg-ambient-glow-1" />
-      <div className="bg-ambient-glow-2" />
-
-      <div style={{
-        width: '100%',
-        maxWidth: (userMode === 'register' || orgMode === 'register') ? '740px' : '440px',
-        position: 'relative',
-        zIndex: 10,
-        transition: 'max-width 0.3s ease'
-      }}>
-        {/* Brand Header */}
-        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-          <img 
-            src={logoImg} 
-            alt="ArogyaX Logo" 
-            style={{ height: '48px', margin: '0 auto 8px auto', objectFit: 'contain' }}
-          />
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0284c7', letterSpacing: '-0.5px', marginBottom: '2px' }}>
-            Arogya<span style={{ color: '#ea580c' }}>X</span>
-          </h1>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-            One QR, One Health Identity.
-          </p>
-        </div>
-
-        {/* 3 Portal Switcher Tabs */}
-        <div style={{
-          display: 'flex',
-          background: '#ffffff',
-          padding: '4px',
-          borderRadius: '12px',
-          border: '1px solid var(--border-color)',
-          boxShadow: 'var(--shadow-sm)',
-          marginBottom: '16px'
-        }}>
-          <button
-            type="button"
-            onClick={() => { setActivePortal('user'); setErrorMessage(''); setSuccessMessage(''); }}
-            style={{
-              flex: 1,
-              padding: '10px 6px',
-              borderRadius: '8px',
-              border: 'none',
-              background: activePortal === 'user' ? '#0284c7' : 'transparent',
-              color: activePortal === 'user' ? '#ffffff' : 'var(--text-muted)',
-              fontWeight: 700,
-              fontSize: '0.8rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <User size={15} />
-            <span>User Portal</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => { setActivePortal('org'); setErrorMessage(''); setSuccessMessage(''); }}
-            style={{
-              flex: 1,
-              padding: '10px 6px',
-              borderRadius: '8px',
-              border: 'none',
-              background: activePortal === 'org' ? '#059669' : 'transparent',
-              color: activePortal === 'org' ? '#ffffff' : 'var(--text-muted)',
-              fontWeight: 700,
-              fontSize: '0.8rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <Building2 size={15} />
-            <span>Organization</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => { setActivePortal('employee'); setErrorMessage(''); setSuccessMessage(''); }}
-            style={{
-              flex: 1,
-              padding: '10px 6px',
-              borderRadius: '8px',
-              border: 'none',
-              background: activePortal === 'employee' ? '#4f46e5' : 'transparent',
-              color: activePortal === 'employee' ? '#ffffff' : 'var(--text-muted)',
-              fontWeight: 700,
-              fontSize: '0.8rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <ShieldCheck size={15} />
-            <span>Admin & Manager</span>
-          </button>
-        </div>
-
-        {/* Main Form Panel */}
-        <div className="white-panel" style={{ padding: '24px 20px' }}>
-          {errorMessage && (
-            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 'var(--radius-sm)', padding: '10px 14px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: '#dc2626', fontSize: '0.84rem' }}>
-              <AlertCircle size={16} style={{ flexShrink: 0 }} />
-              <span>{errorMessage}</span>
-            </div>
-          )}
-
-          {successMessage && (
-            <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius-sm)', padding: '10px 14px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: '#047857', fontSize: '0.84rem' }}>
-              <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
-              <span>{successMessage}</span>
-            </div>
-          )}
-
-          {/* PORTAL 1: USER PORTAL */}
-          {activePortal === 'user' && (
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
+      {/* HEADER BAR */}
+      <header style={{ borderBottom: '1px solid #e2e8f0', background: '#ffffff', padding: '16px 32px' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <img src={logoImg} alt="ArogyaX Logo" style={{ height: '44px', objectFit: 'contain' }} />
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                <div>
-                  <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '2px' }}>
-                    {userMode === 'login' ? 'User Portal Sign In' : 'Create User Account'}
-                  </h2>
-                  <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    Patient & Medical Doctor Portal
-                  </p>
-                </div>
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0284c7', letterSpacing: '-0.5px' }}>
+                Arogya<span style={{ color: '#ea580c' }}>X</span> Health Identity
+              </h1>
+              <p style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Unified Digital Healthcare Platform</p>
+            </div>
+          </div>
+        </div>
+      </header>
 
-                <button
-                  type="button"
-                  onClick={() => { setUserMode(userMode === 'login' ? 'register' : 'login'); setErrorMessage(''); }}
-                  style={{ background: 'none', border: 'none', color: '#0284c7', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem' }}
-                >
-                  {userMode === 'login' ? 'Register Account' : 'Back to Login'}
-                </button>
+      {/* MAIN CONTAINER */}
+      <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 16px' }}>
+        <div style={{ width: '100%', maxWidth: '580px' }}>
+          
+          {/* PORTAL SELECTOR TABS */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '20px', background: '#e2e8f0', padding: '6px', borderRadius: '14px' }}>
+            <button
+              type="button"
+              onClick={() => { setActivePortal('user'); setErrorMessage(''); setSuccessMessage(''); }}
+              style={{
+                padding: '12px 14px',
+                borderRadius: '10px',
+                border: 'none',
+                background: activePortal === 'user' ? '#ffffff' : 'transparent',
+                boxShadow: activePortal === 'user' ? '0 4px 12px rgba(0,0,0,0.08)' : 'none',
+                color: activePortal === 'user' ? '#0284c7' : '#64748b',
+                fontWeight: 700,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              <User size={16} />
+              <span>Patient / Doctor</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setActivePortal('org'); setErrorMessage(''); setSuccessMessage(''); }}
+              style={{
+                padding: '12px 14px',
+                borderRadius: '10px',
+                border: 'none',
+                background: activePortal === 'org' ? '#ffffff' : 'transparent',
+                boxShadow: activePortal === 'org' ? '0 4px 12px rgba(0,0,0,0.08)' : 'none',
+                color: activePortal === 'org' ? '#0284c7' : '#64748b',
+                fontWeight: 700,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              <Building2 size={16} />
+              <span>Hospital / Org</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setActivePortal('employee'); setErrorMessage(''); setSuccessMessage(''); }}
+              style={{
+                padding: '12px 14px',
+                borderRadius: '10px',
+                border: 'none',
+                background: activePortal === 'employee' ? '#ffffff' : 'transparent',
+                boxShadow: activePortal === 'employee' ? '0 4px 12px rgba(0,0,0,0.08)' : 'none',
+                color: activePortal === 'employee' ? '#0284c7' : '#64748b',
+                fontWeight: 700,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              <ShieldCheck size={16} />
+              <span>Admin / Staff</span>
+            </button>
+          </div>
+
+          {/* MAIN CARD */}
+          <div className="white-panel" style={{ padding: '36px', background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 10px 30px rgba(0,0,0,0.06)' }}>
+            
+            {/* NOTIFICATION BANNERS */}
+            {errorMessage && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#dc2626', fontSize: '0.86rem' }}>
+                <AlertCircle size={18} style={{ shrink: 0 }} />
+                <span>{errorMessage}</span>
               </div>
+            )}
 
-              <form onSubmit={handleUserSubmit}>
-                <div className="form-group">
-                  <label className="form-label">Email Address</label>
-                  <input type="email" className="form-input" placeholder="user@arogyax.com" value={userEmail} onChange={(e) => setUserEmail(e.target.value)} required />
-                </div>
+            {successMessage && (
+              <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '10px', padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#047857', fontSize: '0.86rem' }}>
+                <CheckCircle2 size={18} style={{ shrink: 0 }} />
+                <span>{successMessage}</span>
+              </div>
+            )}
 
-                <div className="form-group" style={{ marginBottom: userMode === 'register' ? '14px' : '20px' }}>
-                  <label className="form-label">Password</label>
-                  <input type="password" className="form-input" placeholder="••••••••••••" value={userPassword} onChange={(e) => setUserPassword(e.target.value)} required />
-                </div>
-
-                {userMode === 'register' && (
+            {/* 1. PATIENT / DOCTOR PORTAL */}
+            {activePortal === 'user' && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
                   <div>
-                    {/* Patient vs Doctor Role Toggle */}
-                    <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
-                      <button
-                        type="button"
-                        onClick={() => setIsDoctor(false)}
-                        className="btn-secondary"
-                        style={{
-                          flex: 1,
-                          padding: '8px',
-                          borderColor: !isDoctor ? '#0284c7' : 'var(--border-color)',
-                          background: !isDoctor ? '#e0f2fe' : '#ffffff',
-                          color: !isDoctor ? '#0284c7' : 'var(--text-muted)',
-                          fontWeight: 700
-                        }}
-                      >
-                        <Heart size={14} />
-                        <span>Patient</span>
-                      </button>
+                    <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a' }}>
+                      {userMode === 'login' ? 'User Sign In' : 'Create User Identity'}
+                    </h2>
+                    <p style={{ fontSize: '0.84rem', color: '#64748b', marginTop: '2px' }}>
+                      {userMode === 'login' ? 'Access patient or doctor portal.' : 'Register a new patient or doctor account.'}
+                    </p>
+                  </div>
 
-                      <button
-                        type="button"
-                        onClick={() => setIsDoctor(true)}
-                        className="btn-secondary"
-                        style={{
-                          flex: 1,
-                          padding: '8px',
-                          borderColor: isDoctor ? '#059669' : 'var(--border-color)',
-                          background: isDoctor ? '#ecfdf5' : '#ffffff',
-                          color: isDoctor ? '#059669' : 'var(--text-muted)',
-                          fontWeight: 700
-                        }}
-                      >
-                        <Stethoscope size={14} />
-                        <span>Doctor</span>
-                      </button>
-                    </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUserMode(userMode === 'login' ? 'register' : 'login');
+                      setErrorMessage('');
+                    }}
+                    style={{ background: 'none', border: 'none', color: '#0284c7', fontWeight: 700, fontSize: '0.84rem', cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    {userMode === 'login' ? 'Create Account' : 'Existing User? Sign In'}
+                  </button>
+                </div>
 
-                    <div className="grid-2col">
-                      <div className="form-group col-span-2">
+                <form onSubmit={handleUserSubmit}>
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label className="form-label">Email Address</label>
+                    <input
+                      type="email"
+                      className="form-input"
+                      value={userEmail}
+                      onChange={(e) => setUserEmail(e.target.value)}
+                      placeholder="patient@gmail.com or doctor@gmail.com"
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label className="form-label">Password</label>
+                    <input
+                      type="password"
+                      className="form-input"
+                      value={userPassword}
+                      onChange={(e) => setUserPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                    />
+                  </div>
+
+                  {userMode === 'register' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '20px', paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
+                      <div className="form-group">
                         <label className="form-label">Full Name</label>
-                        <input type="text" className="form-input" placeholder={isDoctor ? "Dr. Alex Sharma" : "John Doe"} value={userName} onChange={(e) => setUserName(e.target.value)} required />
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={userName}
+                          onChange={(e) => setUserName(e.target.value)}
+                          placeholder="e.g. Dr. Shiv Sharma or Patient Name"
+                          required
+                        />
                       </div>
 
-                      <div className="form-group">
-                        <label className="form-label">Blood Group</label>
-                        <select className="form-input" value={bloodGroup} onChange={(e) => setBloodGroup(e.target.value)}>
-                          {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => (
-                            <option key={bg} value={bg}>{bg}</option>
-                          ))}
-                        </select>
+                      <div className="form-group" style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                        <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0 }}>
+                          <input
+                            type="checkbox"
+                            checked={isDoctor}
+                            onChange={(e) => setIsDoctor(e.target.checked)}
+                          />
+                          <Stethoscope size={16} color="#0284c7" />
+                          <span style={{ fontWeight: 700 }}>Register as Medical Practitioner / Doctor</span>
+                        </label>
                       </div>
 
-                      <div className="form-group">
-                        <label className="form-label">Room / Flat No</label>
-                        <input type="text" className="form-input" placeholder="Flat 402" value={roomNo} onChange={(e) => setRoomNo(e.target.value)} />
-                      </div>
-
-                      <div className="form-group">
-                        <label className="form-label">Floor No</label>
-                        <input type="number" className="form-input" placeholder="4" value={floorNo} onChange={(e) => setFloorNo(e.target.value)} />
-                      </div>
-
-                      <div className="form-group">
-                        <label className="form-label">Landmark</label>
-                        <input type="text" className="form-input" placeholder="Near City Mall" value={landmark} onChange={(e) => setLandmark(e.target.value)} />
-                      </div>
-
-                      <div className="form-group">
-                        <label className="form-label">City</label>
-                        <input type="text" className="form-input" placeholder="New Delhi" value={city} onChange={(e) => setCity(e.target.value)} required />
-                      </div>
-
-                      <div className="form-group">
-                        <label className="form-label">State</label>
-                        <input type="text" className="form-input" placeholder="Delhi" value={stateName} onChange={(e) => setStateName(e.target.value)} required />
-                      </div>
-
-                      <div className="form-group">
-                        <label className="form-label">Pincode (6 Digits)</label>
-                        <input type="text" className="form-input" placeholder="110001" value={pincode} onChange={(e) => setPincode(e.target.value)} required />
-                      </div>
-
-                      {/* GPS Location Inputs */}
-                      <div className="form-group col-span-2">
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <label className="form-label" style={{ margin: 0 }}>GPS Coordinates (Longitude & Latitude)</label>
-                          <button
-                            type="button"
-                            onClick={() => handleGetCurrentLocation('user')}
-                            className="btn-secondary"
-                            style={{ padding: '2px 8px', fontSize: '0.72rem', color: '#0284c7' }}
-                            disabled={isLocating}
-                          >
-                            <Navigation size={12} className={isLocating ? 'spin' : ''} />
-                            <span>{isLocating ? 'Locating...' : 'Get GPS Location'}</span>
-                          </button>
+                      {!isDoctor && (
+                        <div className="form-group">
+                          <label className="form-label">Blood Group</label>
+                          <select className="form-input" value={bloodGroup} onChange={(e) => setBloodGroup(e.target.value)}>
+                            {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => (
+                              <option key={bg} value={bg}>{bg}</option>
+                            ))}
+                          </select>
                         </div>
-
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <input type="text" className="form-input" style={{ flex: 1 }} placeholder="Longitude (77.2090)" value={longitude} onChange={(e) => setLongitude(e.target.value)} required />
-                          <input type="text" className="form-input" style={{ flex: 1 }} placeholder="Latitude (28.6139)" value={latitude} onChange={(e) => setLatitude(e.target.value)} required />
-                        </div>
-                      </div>
-
-                      {/* Doctor Specific Fields */}
-                      {isDoctor && (
-                        <>
-                          <div className="form-group col-span-2">
-                            <label className="form-label">Medical Speciality</label>
-                            <input type="text" className="form-input" placeholder="e.g. Cardiology, Pediatrics" value={speciality} onChange={(e) => setSpeciality(e.target.value)} required />
-                          </div>
-
-                          <div className="form-group">
-                            <label className="form-label">Medical Cert No</label>
-                            <input type="text" className="form-input" placeholder="MCI-2026-887" value={certNo} onChange={(e) => setCertNo(e.target.value)} required />
-                          </div>
-
-                          <div className="form-group">
-                            <label className="form-label">Certificate Proof PDF URL</label>
-                            <input type="url" className="form-input" placeholder="https://example.com/cert.pdf" value={certDoc} onChange={(e) => setCertDoc(e.target.value)} required />
-                          </div>
-                        </>
                       )}
-                    </div>
-                  </div>
-                )}
 
-                <button type="submit" className="btn-primary" disabled={isSubmitting} style={{ width: '100%', padding: '12px', fontSize: '0.92rem', marginTop: '8px' }}>
-                  {isSubmitting ? 'Processing...' : userMode === 'login' ? 'Sign In to User Portal' : 'Register & Complete Profile'}
-                </button>
-              </form>
-            </div>
-          )}
+                      {isDoctor && (
+                        <div className="grid-2col" style={{ gap: '12px' }}>
+                          <div className="form-group">
+                            <label className="form-label">Speciality</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={speciality}
+                              onChange={(e) => setSpeciality(e.target.value)}
+                              placeholder="e.g. Cardiology, General Medicine"
+                              required
+                            />
+                          </div>
 
-          {/* PORTAL 2: ORGANIZATION PORTAL */}
-          {activePortal === 'org' && (
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                <div>
-                  <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '2px' }}>
-                    Healthcare Organization
-                  </h2>
-                  <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    Hospitals, Clinics, Laboratories
-                  </p>
-                </div>
+                          <div className="form-group">
+                            <label className="form-label">MCI Registration Cert No</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={certNo}
+                              onChange={(e) => setCertNo(e.target.value)}
+                              placeholder="e.g. MCI-998821"
+                              required
+                            />
+                          </div>
+                        </div>
+                      )}
 
-                <button
-                  type="button"
-                  onClick={() => { setOrgMode(orgMode === 'login' ? 'register' : 'login'); setErrorMessage(''); }}
-                  style={{ background: 'none', border: 'none', color: '#059669', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem' }}
-                >
-                  {orgMode === 'login' ? 'Register Facility' : 'Back to Login'}
-                </button>
-              </div>
-
-              <form onSubmit={handleOrgSubmit}>
-                <div className="form-group">
-                  <label className="form-label">Organization Email</label>
-                  <input type="email" className="form-input" placeholder="org@hospital.com" value={orgEmail} onChange={(e) => setOrgEmail(e.target.value)} required />
-                </div>
-
-                <div className="form-group" style={{ marginBottom: orgMode === 'register' ? '14px' : '20px' }}>
-                  <label className="form-label">Password</label>
-                  <input type="password" className="form-input" placeholder="••••••••••••" value={orgPassword} onChange={(e) => setOrgPassword(e.target.value)} required />
-                </div>
-
-                {orgMode === 'register' && (
-                  <div className="grid-2col">
-                    <div className="form-group col-span-2">
-                      <label className="form-label">Facility Name</label>
-                      <input type="text" className="form-input" placeholder="City Care Hospital" value={orgName} onChange={(e) => setOrgName(e.target.value)} required />
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label">Facility Type</label>
-                      <select className="form-input" value={facilityType} onChange={(e) => setFacilityType(e.target.value)}>
-                        <option value="hospital">Hospital</option>
-                        <option value="clinic">Clinic</option>
-                        <option value="laboratory">Laboratory</option>
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label">Contact Phone</label>
-                      <input type="text" className="form-input" placeholder="+91 9876543210" value={contactNumber} onChange={(e) => setContactNumber(e.target.value)} required />
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label">Building No</label>
-                      <input type="text" className="form-input" placeholder="Bldg A-12" value={orgBuilding} onChange={(e) => setOrgBuilding(e.target.value)} />
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label">Landmark</label>
-                      <input type="text" className="form-input" placeholder="Near Metro Station" value={orgLandmark} onChange={(e) => setOrgLandmark(e.target.value)} />
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label">City</label>
-                      <input type="text" className="form-input" placeholder="New Delhi" value={orgCity} onChange={(e) => setOrgCity(e.target.value)} required />
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label">State</label>
-                      <input type="text" className="form-input" placeholder="Delhi" value={orgState} onChange={(e) => setOrgState(e.target.value)} required />
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label">Pincode (6 Digits)</label>
-                      <input type="text" className="form-input" placeholder="110001" value={orgPincode} onChange={(e) => setOrgPincode(e.target.value)} required />
-                    </div>
-
-                    {/* GPS Location Inputs */}
-                    <div className="form-group col-span-2">
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <label className="form-label" style={{ margin: 0 }}>GPS Coordinates (Longitude & Latitude)</label>
-                        <button
-                          type="button"
-                          onClick={() => handleGetCurrentLocation('org')}
-                          className="btn-secondary"
-                          style={{ padding: '2px 8px', fontSize: '0.72rem', color: '#059669' }}
-                          disabled={isLocating}
-                        >
-                          <Navigation size={12} className={isLocating ? 'spin' : ''} />
-                          <span>{isLocating ? 'Locating...' : 'Get GPS Location'}</span>
-                        </button>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <input type="text" className="form-input" style={{ flex: 1 }} placeholder="Longitude" value={orgLng} onChange={(e) => setOrgLng(e.target.value)} required />
-                        <input type="text" className="form-input" style={{ flex: 1 }} placeholder="Latitude" value={orgLat} onChange={(e) => setOrgLat(e.target.value)} required />
+                      <div className="grid-2col" style={{ gap: '12px' }}>
+                        <div className="form-group">
+                          <label className="form-label">City</label>
+                          <input type="text" className="form-input" value={city} onChange={(e) => setCity(e.target.value)} placeholder="New Delhi" required />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">State</label>
+                          <input type="text" className="form-input" value={stateName} onChange={(e) => setStateName(e.target.value)} placeholder="Delhi" required />
+                        </div>
                       </div>
                     </div>
+                  )}
 
-                    <div className="form-group col-span-2">
-                      <label className="form-label">Cert No</label>
-                      <input type="text" className="form-input" placeholder="REG-2026-99" value={orgCertNo} onChange={(e) => setOrgCertNo(e.target.value)} required />
-                    </div>
-                  </div>
-                )}
-
-                <button type="submit" className="btn-success" disabled={isSubmitting} style={{ width: '100%', padding: '12px', fontSize: '0.92rem', marginTop: '8px' }}>
-                  {isSubmitting ? 'Processing...' : orgMode === 'login' ? 'Sign In' : 'Submit Facility for Approval'}
-                </button>
-              </form>
-            </div>
-          )}
-
-          {/* PORTAL 3: EMPLOYEE PORTAL */}
-          {activePortal === 'employee' && (
-            <div>
-              <div style={{ marginBottom: '16px' }}>
-                <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '2px' }}>
-                  Employee Sign In
-                </h2>
-                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                  Admin and Verification Manager Portal
-                </p>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={isSubmitting}
+                    style={{ width: '100%', padding: '12px', fontSize: '0.95rem', background: '#0284c7', borderColor: '#0284c7' }}
+                  >
+                    <span>{isSubmitting ? 'Authenticating...' : userMode === 'login' ? 'Sign In to Portal' : 'Register User Identity'}</span>
+                    <ArrowRight size={16} />
+                  </button>
+                </form>
               </div>
+            )}
 
-              <form onSubmit={handleEmployeeSubmit}>
-                <div className="form-group">
-                  <label className="form-label">Username</label>
-                  <input type="text" className="form-input" placeholder="admin or manager username" value={empUsername} onChange={(e) => setEmpUsername(e.target.value)} required />
+            {/* 2. HOSPITAL / ORGANIZATION PORTAL */}
+            {activePortal === 'org' && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
+                  <div>
+                    <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a' }}>
+                      {orgMode === 'login' ? 'Organization Sign In' : 'Register Facility'}
+                    </h2>
+                    <p style={{ fontSize: '0.84rem', color: '#64748b', marginTop: '2px' }}>
+                      {orgMode === 'login' ? 'Sign in with organization email.' : 'Register hospital or clinic facility.'}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOrgMode(orgMode === 'login' ? 'register' : 'login');
+                      setErrorMessage('');
+                    }}
+                    style={{ background: 'none', border: 'none', color: '#0284c7', fontWeight: 700, fontSize: '0.84rem', cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    {orgMode === 'login' ? 'Register Facility' : 'Existing Org? Sign In'}
+                  </button>
                 </div>
 
-                <div className="form-group" style={{ marginBottom: '20px' }}>
-                  <label className="form-label">Password</label>
-                  <input type="password" className="form-input" placeholder="••••••••••••" value={empPassword} onChange={(e) => setEmpPassword(e.target.value)} required />
-                </div>
+                <form onSubmit={handleOrgSubmit}>
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label className="form-label">Organization Email</label>
+                    <input
+                      type="email"
+                      className="form-input"
+                      value={orgEmail}
+                      onChange={(e) => setOrgEmail(e.target.value)}
+                      placeholder="admin@hospital.com"
+                      required
+                    />
+                  </div>
 
-                <button type="submit" className="btn-primary" disabled={isSubmitting} style={{ width: '100%', padding: '12px', fontSize: '0.92rem' }}>
-                  {isSubmitting ? 'Authenticating...' : 'Sign In'}
-                </button>
-              </form>
-            </div>
-          )}
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label className="form-label">Password</label>
+                    <input
+                      type="password"
+                      className="form-input"
+                      value={orgPassword}
+                      onChange={(e) => setOrgPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                    />
+                  </div>
+
+                  {orgMode === 'register' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '20px', paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
+                      <div className="form-group">
+                        <label className="form-label">Hospital / Organization Name</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={orgName}
+                          onChange={(e) => setOrgName(e.target.value)}
+                          placeholder="e.g. Apex Multi-Speciality Hospital"
+                          required
+                        />
+                      </div>
+
+                      <div className="grid-2col" style={{ gap: '12px' }}>
+                        <div className="form-group">
+                          <label className="form-label">Facility Type</label>
+                          <select className="form-input" value={facilityType} onChange={(e) => setFacilityType(e.target.value)}>
+                            {['hospital', 'clinic', 'laboratory', 'pharmacy', 'other'].map(t => (
+                              <option key={t} value={t}>{t.toUpperCase()}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="form-group">
+                          <label className="form-label">Contact Number</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={contactNumber}
+                            onChange={(e) => setContactNumber(e.target.value)}
+                            placeholder="9999999999"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid-2col" style={{ gap: '12px' }}>
+                        <div className="form-group">
+                          <label className="form-label">City</label>
+                          <input type="text" className="form-input" value={orgCity} onChange={(e) => setOrgCity(e.target.value)} placeholder="New Delhi" required />
+                        </div>
+
+                        <div className="form-group">
+                          <label className="form-label">State</label>
+                          <input type="text" className="form-input" value={orgState} onChange={(e) => setOrgState(e.target.value)} placeholder="Delhi" required />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={isSubmitting}
+                    style={{ width: '100%', padding: '12px', fontSize: '0.95rem', background: '#0284c7', borderColor: '#0284c7' }}
+                  >
+                    <span>{isSubmitting ? 'Authenticating...' : orgMode === 'login' ? 'Sign In to Org Portal' : 'Register Organization'}</span>
+                    <ArrowRight size={16} />
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* 3. EMPLOYEE / ADMIN / MANAGER PORTAL */}
+            {activePortal === 'employee' && (
+              <div>
+                <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', marginBottom: '4px' }}>Administrative Staff Portal</h2>
+                <p style={{ fontSize: '0.84rem', color: '#64748b', marginBottom: '22px' }}>Sign in with assigned admin or manager credentials.</p>
+
+                <form onSubmit={handleEmployeeSubmit}>
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label className="form-label">Username</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={empUsername}
+                      onChange={(e) => setEmpUsername(e.target.value)}
+                      placeholder="admin or manager username"
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label className="form-label">Password</label>
+                    <input
+                      type="password"
+                      className="form-input"
+                      value={empPassword}
+                      onChange={(e) => setEmpPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={isSubmitting}
+                    style={{ width: '100%', padding: '12px', fontSize: '0.95rem', background: '#0284c7', borderColor: '#0284c7' }}
+                  >
+                    <span>{isSubmitting ? 'Authenticating...' : 'Sign In to Staff Portal'}</span>
+                    <ArrowRight size={16} />
+                  </button>
+                </form>
+              </div>
+            )}
+
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

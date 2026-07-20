@@ -8,32 +8,49 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/employee-auth': {
-        target: 'http://localhost:3000',
-        changeOrigin: true
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: true,
+        secure: false
       },
       '/admin': {
-        target: 'http://localhost:3000',
-        changeOrigin: true
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: true,
+        secure: false
       },
       '/manager': {
-        target: 'http://localhost:3000',
-        changeOrigin: true
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: true,
+        secure: false
       },
       '/org': {
-        target: 'http://localhost:3000',
-        changeOrigin: true
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: true,
+        secure: false
       },
       '/auth': {
-        target: 'http://localhost:3000',
-        changeOrigin: true
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: true,
+        secure: false
       },
       '/user': {
-        target: 'http://localhost:3000',
-        changeOrigin: true
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/medicines': {
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/prescriptions': {
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: true,
+        secure: false
       },
       '/health': {
-        target: 'http://localhost:3000',
-        changeOrigin: true
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: true,
+        secure: false
       }
     }
   }

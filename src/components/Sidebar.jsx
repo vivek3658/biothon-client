@@ -9,12 +9,14 @@ import {
   FileText, 
   ChevronLeft, 
   ChevronRight,
-  UserCog
+  UserCog,
+  Pill
 } from 'lucide-react';
 
 export const Sidebar = ({ role, activeTab, setActiveTab, collapsed, setCollapsed }) => {
   const adminMenuItems = [
     { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'medicines', label: 'Medicine Catalog', icon: Pill, badge: 'Catalog' },
     { id: 'managers', label: 'Manage Managers', icon: UserCog, badge: 'CRUD' },
     { id: 'organizations', label: 'All Organizations', icon: Building2 },
     { id: 'audit', label: 'System Audit', icon: ShieldCheck }
@@ -22,6 +24,7 @@ export const Sidebar = ({ role, activeTab, setActiveTab, collapsed, setCollapsed
 
   const managerMenuItems = [
     { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'medicines', label: 'Medicine Catalog', icon: Pill },
     { id: 'pending', label: 'Pending Approvals', icon: Clock, badge: 'Action Needed' },
     { id: 'organizations', label: 'Verified Orgs', icon: CheckCircle2 },
     { id: 'reports', label: 'Verification Logs', icon: FileText }
@@ -63,6 +66,7 @@ export const Sidebar = ({ role, activeTab, setActiveTab, collapsed, setCollapsed
           </span>
         )}
         <button
+          type="button"
           onClick={() => setCollapsed(!collapsed)}
           className="btn-secondary"
           style={{
@@ -110,6 +114,7 @@ export const Sidebar = ({ role, activeTab, setActiveTab, collapsed, setCollapsed
           return (
             <button
               key={item.id}
+              type="button"
               onClick={() => setActiveTab(item.id)}
               style={{
                 display: 'flex',
