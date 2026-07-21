@@ -233,3 +233,28 @@ export const labFullSchema = labStep1Schema
   .merge(labStep3Schema)
   .merge(labStep4Schema)
   .merge(labStep5Schema);
+
+// ==========================================
+// 6. RECEPTIONIST SCHEMAS
+// ==========================================
+export const receptionistStep1Schema = z.object({
+  name: z.string().min(2, 'Receptionist full name required'),
+  phone: z.string().min(10, 'Valid contact number required'),
+  email: z.string().email('Valid email address required')
+});
+
+export const receptionistStep2Schema = z.object({
+  assignedFacilityType: z.enum(['clinic', 'hospital']),
+  assignedFacilityName: z.string().min(2, 'Assigned facility name required'),
+  employeeCode: z.string().min(2, 'Employee staff code required')
+});
+
+export const receptionistStep3Schema = z.object({
+  agreedToConsent: z.boolean().refine(val => val === true, {
+    message: 'You must agree to the privacy policy & staff consent'
+  })
+});
+
+export const receptionistFullSchema = receptionistStep1Schema
+  .merge(receptionistStep2Schema)
+  .merge(receptionistStep3Schema);

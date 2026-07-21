@@ -20,13 +20,17 @@ import {
 import {
   LaboratoryStep1, LaboratoryStep2, LaboratoryStep3, LaboratoryStep4, LaboratoryStep5
 } from './steps/LaboratorySteps';
+import {
+  ReceptionistStep1, ReceptionistStep2, ReceptionistStep3
+} from './steps/ReceptionistSteps';
 
 import {
   patientStep1Schema, patientStep2Schema, patientStep3Schema, patientStep4Schema, patientStep5Schema,
   doctorStep1Schema, doctorStep2Schema, doctorStep3Schema, doctorStep4Schema, doctorStep5Schema,
   clinicStep1Schema, clinicStep2Schema, clinicStep3Schema, clinicStep4Schema, clinicStep5Schema,
   hospitalStep1Schema, hospitalStep2Schema, hospitalStep3Schema, hospitalStep4Schema, hospitalStep5Schema,
-  labStep1Schema, labStep2Schema, labStep3Schema, labStep4Schema, labStep5Schema
+  labStep1Schema, labStep2Schema, labStep3Schema, labStep4Schema, labStep5Schema,
+  receptionistStep1Schema, receptionistStep2Schema, receptionistStep3Schema
 } from '../../schemas/authSchemas';
 
 const roleConfig = {
@@ -79,6 +83,14 @@ const roleConfig = {
       { title: 'Services & Address', schema: labStep4Schema, Component: LaboratoryStep4 },
       { title: 'Confirmation', schema: labStep5Schema, Component: LaboratoryStep5 }
     ]
+  },
+  receptionist: {
+    title: 'Receptionist',
+    steps: [
+      { title: 'Personal Info', schema: receptionistStep1Schema, Component: ReceptionistStep1 },
+      { title: 'Facility & Badge', schema: receptionistStep2Schema, Component: ReceptionistStep2 },
+      { title: 'Confirmation', schema: receptionistStep3Schema, Component: ReceptionistStep3 }
+    ]
   }
 };
 
@@ -104,6 +116,7 @@ export const RegistrationWizard = ({ role, onResetRole, onRegistrationSuccess, d
     return {
       email: defaultEmail,
       facilityType: role === 'clinic' ? 'clinic' : role === 'hospital' ? 'hospital' : role === 'laboratory' ? 'laboratory' : undefined,
+      assignedFacilityType: 'clinic',
       bloodGroup: 'A+',
       gender: 'male',
       category: 'General',

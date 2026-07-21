@@ -17,7 +17,7 @@ import {
   Pill
 } from 'lucide-react';
 
-import { apiClient } from '../api/axios';
+import { ReceptionDashboard } from './dashboards/ReceptionDashboard';
 
 export const DashboardPage = () => {
   const { user } = useAuth();
@@ -27,8 +27,9 @@ export const DashboardPage = () => {
 
   // Strict role classification
   const isAdminOrManager = user?.role === 'admin' || user?.role === 'manager' || user?.entityModel === 'Employee';
-  const isOrgRole = !isAdminOrManager && (user?.entityModel === 'Organization' || ['hospital', 'clinic', 'laboratory', 'pharmacy', 'other'].includes(user?.role));
-  const isUserRole = !isAdminOrManager && !isOrgRole && (user?.entityModel === 'User' || user?.role === 'patient' || user?.role === 'doctor');
+  const isReceptionist = user?.role === 'receptionist';
+  const isOrgRole = !isAdminOrManager && !isReceptionist && (user?.entityModel === 'Organization' || ['hospital', 'clinic', 'laboratory', 'pharmacy', 'other'].includes(user?.role));
+  const isUserRole = !isAdminOrManager && !isOrgRole && !isReceptionist && (user?.entityModel === 'User' || user?.role === 'patient' || user?.role === 'doctor');
 
   const [stats, setStats] = useState({
     managersCount: 0,
@@ -123,11 +124,14 @@ export const DashboardPage = () => {
           margin: '0 auto',
           width: '100%'
         }}>
-          {/* 1. HOSPITAL / CLINIC / ORGANIZATION DASHBOARD */}
-          {isOrgRole ? (
+          {/* 1. RECEPTIONIST DASHBOARD */}
+          {isReceptionist ? (
+            <ReceptionDashboard user={user} />
+          ) : isOrgRole ? (
+            /* 2. HOSPITAL / CLINIC / ORGANIZATION DASHBOARD */
             <OrgDashboard />
           ) : isUserRole ? (
-            /* 2. PATIENT & DOCTOR DASHBOARD */
+            /* 3. PATIENT & DOCTOR DASHBOARD */
             <UserDashboard />
           ) : (
             /* 3. ADMIN & MANAGER DASHBOARD */

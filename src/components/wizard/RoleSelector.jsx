@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Stethoscope, Building2, Building, FlaskConical, ArrowRight, ShieldCheck } from 'lucide-react';
+import { User, Stethoscope, Building2, Building, FlaskConical, UserCheck, ArrowRight, ShieldCheck } from 'lucide-react';
 
 const roles = [
   {
@@ -7,40 +7,42 @@ const roles = [
     title: 'Patient',
     icon: User,
     description: 'Personal Health Identity, Emergency Access & Digital Records',
-    color: 'from-blue-500 to-indigo-600',
-    bgColor: 'bg-blue-50/50'
+    color: 'from-blue-500 to-indigo-600'
   },
   {
     id: 'doctor',
     title: 'Doctor',
     icon: Stethoscope,
     description: 'Medical Practitioner, Prescriptions & Patient Consultations',
-    color: 'from-sky-500 to-cyan-600',
-    bgColor: 'bg-sky-50/50'
+    color: 'from-sky-500 to-cyan-600'
   },
   {
     id: 'clinic',
     title: 'Clinic',
     icon: Building,
     description: 'Outpatient Specialty Center & Appointment Management',
-    color: 'from-teal-500 to-emerald-600',
-    bgColor: 'bg-teal-50/50'
+    color: 'from-teal-500 to-emerald-600'
   },
   {
     id: 'hospital',
     title: 'Hospital',
     icon: Building2,
     description: 'Inpatient Medical Institution, Emergency & Bed Allocation',
-    color: 'from-amber-500 to-orange-600',
-    bgColor: 'bg-amber-50/50'
+    color: 'from-amber-500 to-orange-600'
   },
   {
     id: 'laboratory',
     title: 'Laboratory',
     icon: FlaskConical,
     description: 'Pathology & Diagnostic Center, Digital Lab Reports',
-    color: 'from-purple-500 to-indigo-600',
-    bgColor: 'bg-purple-50/50'
+    color: 'from-purple-500 to-indigo-600'
+  },
+  {
+    id: 'receptionist',
+    title: 'Receptionist',
+    icon: UserCheck,
+    description: 'Front Desk Desk Scanner, Walk-in Token & Patient Check-In',
+    color: 'from-rose-500 to-pink-600'
   }
 ];
 
@@ -60,7 +62,7 @@ export const RoleSelector = ({ selectedRole, onSelectRole, onProceed }) => {
       </div>
 
       {/* Role Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-5 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-10">
         {roles.map((role) => {
           const Icon = role.icon;
           const isSelected = selectedRole === role.id;
@@ -70,27 +72,27 @@ export const RoleSelector = ({ selectedRole, onSelectRole, onProceed }) => {
               key={role.id}
               type="button"
               onClick={() => onSelectRole(role.id)}
-              className={`flex flex-col items-center text-center p-6 md:p-7 rounded-2xl border-2 transition-all duration-300 relative group cursor-pointer ${
+              className={`flex flex-col items-center text-center p-5 rounded-2xl border-2 transition-all duration-300 relative group cursor-pointer ${
                 isSelected
                   ? 'border-sky-600 bg-sky-50/90 shadow-xl shadow-sky-100 scale-[1.03]'
                   : 'border-slate-200/90 bg-white hover:border-slate-300 hover:shadow-lg'
               }`}
             >
               <div
-                className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-4 shadow-md bg-gradient-to-br ${role.color} ${
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white mb-3 shadow-md bg-gradient-to-br ${role.color} ${
                   isSelected ? 'ring-4 ring-sky-200 scale-110' : ''
                 }`}
               >
-                <Icon className="w-7 h-7" />
+                <Icon className="w-6 h-6" />
               </div>
 
-              <h3 className="text-lg font-black text-slate-900 mb-2">{role.title}</h3>
-              <p className="text-xs font-medium text-slate-500 leading-relaxed line-clamp-3">
+              <h3 className="text-base font-black text-slate-900 mb-1">{role.title}</h3>
+              <p className="text-[11px] font-medium text-slate-500 leading-snug line-clamp-3">
                 {role.description}
               </p>
 
               {isSelected && (
-                <div className="mt-4 text-xs font-extrabold text-sky-700 bg-sky-100 px-3 py-1 rounded-full border border-sky-200">
+                <div className="mt-3 text-[10px] font-extrabold text-sky-700 bg-sky-100 px-2.5 py-0.5 rounded-full border border-sky-200">
                   Selected
                 </div>
               )}
