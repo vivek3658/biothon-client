@@ -690,13 +690,8 @@ export const UserDashboard = () => {
     }
 
     try {
-      const res = await fetch(`/user/profile/${patientId}`, {
-        headers: getAuthHeaders(false),
-        credentials: 'include'
-      });
-      const data = await res.json();
-
-      if (res.ok && data?.userProfile) {
+      const { ok, data } = await safeFetchJson(`/user/profile/${patientId}`);
+      if (ok && data?.userProfile) {
         return {
           id: data.userProfile._id || patientId,
           name: data.userProfile.name || fallback.name || 'Verified ArogyaX Patient',
@@ -841,15 +836,12 @@ export const UserDashboard = () => {
         };
       }
 
-      const res = await fetch(`/user/profile/${targetId}`, {
+      const { ok, data, error: errStr } = await safeFetchJson(`/user/profile/${targetId}`, {
         method: 'PUT',
-        headers: getAuthHeaders(true),
-        credentials: 'include',
         body: JSON.stringify(payload)
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || data.details || 'Failed to update profile');
+      if (!ok) throw new Error(errStr || 'Failed to update profile');
 
       setSuccessMsg('User profile updated successfully!');
       setShowEditModal(false);
@@ -983,9 +975,8 @@ export const UserDashboard = () => {
     try {
       setIsSubmitting(true);
       setError('');
-      const res = await fetch('/prescriptions', {
+      const { ok, data, error: errStr } = await safeFetchJson('/prescriptions', {
         method: 'POST',
-        headers: getAuthHeaders(true),
         body: JSON.stringify({
           patientId: createRxWorkspace.patient.id,
           organizationId: userProfile?.doctorDetails?.affiliateOrganization || null,
@@ -996,8 +987,7 @@ export const UserDashboard = () => {
         })
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to issue prescription');
+      if (!ok) throw new Error(errStr || 'Failed to issue prescription');
 
       setSuccessMsg(`Prescription issued successfully for ${createRxWorkspace.patient.name}!`);
       setCreateRxWorkspace(null);
