@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
 import QrScanner from 'qr-scanner';
 import qrScannerWorkerPath from 'qr-scanner/qr-scanner-worker.min?url';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { useAuth } from '../context/AuthContext';
 import { PrescriptionPage } from '../pages/PrescriptionPage';
 import { 
@@ -42,19 +44,31 @@ import {
   Check,
   Building2,
   Paperclip,
-  Send
+  Send,
+  Globe,
+  UserCheck,
+  BarChart3,
+  TrendingUp,
+  PieChart,
+  Filter,
+  ShoppingBag,
+  Tag,
+  ShoppingCart,
+  Printer,
+  Receipt
 } from 'lucide-react';
+import logoImg from '../assets/logo.jpg';
 
 // Helper: build auth headers from localStorage token
 const getAuthHeaders = (contentType = true) => {
   const token = localStorage.getItem('token');
   const headers = {};
   if (contentType) headers['Content-Type'] = 'application/json';
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (token && token !== 'undefined' && token !== 'null') {
+    headers['Authorization'] = `Bearer ${token.trim()}`;
+  }
   return headers;
 };
-
-QrScanner.WORKER_PATH = qrScannerWorkerPath;
 
 // Standards-compliant SVG QR Code Generator Component with ID
 const QRCodeSVG = ({ value, size = 220 }) => {
@@ -100,6 +114,10 @@ const QRCodeSVG = ({ value, size = 220 }) => {
 export const UserDashboard = () => {
   const { userProfile, refreshUser, logout } = useAuth();
   
+  // Active viewing profile state for Managed Profiles (Family Members)
+  const [selectedManagedProfile, setSelectedManagedProfile] = useState(null);
+  const activeProfile = selectedManagedProfile || userProfile;
+
   // Doctor Dual Mode State: 'doctor' | 'patient'
   const [activeMode, setActiveMode] = useState(userProfile?.isDoctor ? 'doctor' : 'patient');
   
@@ -113,13 +131,12 @@ export const UserDashboard = () => {
   // Selected Prescription for Tabular Page View
   const [selectedRxId, setSelectedRxId] = useState(null);
 
-  // Full-Page Doctor Prescription Creator State (Replaces Cramped Modal)
-  const [createRxWorkspace, setCreateRxWorkspace] = useState(null); // { patient: { id, name, bloodGroup } }
+  // Full-Page Doctor Prescription Creator State
+  const [createRxWorkspace, setCreateRxWorkspace] = useState(null);
 
   // Doctor Organization Affiliation Search State
   const [orgSearchQuery, setOrgSearchQuery] = useState('');
   const [orgSearchResults, setOrgSearchResults] = useState([]);
-  const [isSearchingOrgs, setIsSearchingOrgs] = useState(false);
 
   // QR Code Security Token State
   const [qrToken, setQrToken] = useState(Date.now().toString(36));
@@ -128,6 +145,7 @@ export const UserDashboard = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editName, setEditName] = useState('');
   const [editBloodGroup, setEditBloodGroup] = useState('A+');
+  const [editHouseNo, setEditHouseNo] = useState('');
   const [editRoomNo, setEditRoomNo] = useState('');
   const [editFloorNo, setEditFloorNo] = useState(0);
   const [editLandmark, setEditLandmark] = useState('');
@@ -146,9 +164,6 @@ export const UserDashboard = () => {
 
   // Real Prescription State from API
   const [prescriptions, setPrescriptions] = useState([]);
-  const [reports] = useState([
-    { id: 'rep-201', lab: 'Apex Diagnostics', date: '2026-07-10', title: 'Complete Blood Count (CBC)', status: 'Normal' }
-  ]);
 
   // Doctor QR Scanner Modal State
   const [showScanModal, setShowScanModal] = useState(false);
@@ -190,37 +205,85 @@ export const UserDashboard = () => {
     }
   ]);
 
-  // Sync edit form fields when userProfile changes
+  // Nearby Healthcare Leaflet Map State
+  const mapContainerRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const [nearbyOrganizations, setNearbyOrganizations] = useState([]);
+  const [selectedFacility, setSelectedFacility] = useState(null);
+
+  // Appointments State
+  const [appointments, setAppointments] = useState([]);
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [appointmentSearchQuery, setAppointmentSearchQuery] = useState('');
+  const [appointmentStatusFilter, setAppointmentStatusFilter] = useState('all');
+  const [isBookingSlot, setIsBookingSlot] = useState(false);
+
+  // Medicine Marketplace & Cart State
+  const [marketplaceItems, setMarketplaceItems] = useState([]);
+  const [marketplaceSearch, setMarketplaceSearch] = useState('');
+  const [cart, setCart] = useState([]);
+  const [showCartModal, setShowCartModal] = useState(false);
+
+  // Patient Buying Orders & Invoice Bill Modal State
+  const [patientOrders, setPatientOrders] = useState([]);
+  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState(null);
+
+  // Doctor Slots Management State
+  const [docSlotDate, setDocSlotDate] = useState(new Date().toISOString().split('T')[0]);
+  const [docStartTime, setDocStartTime] = useState('09:00');
+  const [docEndTime, setDocEndTime] = useState('13:00');
+  const [docFee, setDocFee] = useState(500);
+  const [docMaxBookings, setDocMaxBookings] = useState(5);
+  const [docConsultationMode, setDocConsultationMode] = useState('in_person');
+  const [docSlotTitle, setDocSlotTitle] = useState('General Consultation Slot');
+
+  // Family Managed Profiles State
+  const [showAddFamilyModal, setShowAddFamilyModal] = useState(false);
+  const [familyAddMode, setFamilyAddMode] = useState('create');
+  const [familySearchEmail, setFamilySearchEmail] = useState('');
+  const [familySearchResult, setFamilySearchResult] = useState(null);
+  const [familyNewName, setFamilyNewName] = useState('');
+  const [familyNewBloodGroup, setFamilyNewBloodGroup] = useState('A+');
+  const [familyNewRelation, setFamilyNewRelation] = useState('Family Member');
+
+  // Sync edit form fields when activeProfile changes
   useEffect(() => {
-    if (userProfile) {
-      setEditName(userProfile.name || '');
-      setEditBloodGroup(userProfile.bloodGroup || 'A+');
-      setEditRoomNo(userProfile.location?.roomNo || '');
-      setEditFloorNo(userProfile.location?.floorNo || 0);
-      setEditLandmark(userProfile.location?.landmark || '');
-      setEditCity(userProfile.location?.city || '');
-      setEditState(userProfile.location?.state || '');
-      setEditPincode(userProfile.location?.pincode || '');
-      setEditLng(userProfile.coordinates?.[0] ?? '77.2090');
-      setEditLat(userProfile.coordinates?.[1] ?? '28.6139');
-      if (userProfile.isDoctor) {
-        setEditSpeciality(userProfile.doctorDetails?.speciality || '');
-        setEditCertNo(userProfile.doctorDetails?.certificateNo || '');
-        setEditCertDoc(userProfile.doctorDetails?.certificateDoc || '');
+    if (activeProfile) {
+      setEditName(activeProfile.name || '');
+      setEditBloodGroup(activeProfile.bloodGroup || 'A+');
+      setEditHouseNo(activeProfile.location?.houseNo || '');
+      setEditRoomNo(activeProfile.location?.roomNo || '');
+      setEditFloorNo(activeProfile.location?.floorNo || 0);
+      setEditLandmark(activeProfile.location?.landmark || '');
+      setEditCity(activeProfile.location?.city || '');
+      setEditState(activeProfile.location?.state || '');
+      setEditPincode(activeProfile.location?.pincode || '');
+      setEditLng(activeProfile.coordinates?.[0] ?? '77.2090');
+      setEditLat(activeProfile.coordinates?.[1] ?? '28.6139');
+      if (activeProfile.isDoctor) {
+        setEditSpeciality(activeProfile.doctorDetails?.speciality || '');
+        setEditCertNo(activeProfile.doctorDetails?.certificateNo || '');
+        setEditCertDoc(activeProfile.doctorDetails?.certificateDoc || '');
       }
     }
-  }, [userProfile]);
+  }, [activeProfile]);
+
+  const safeFetchJson = async (url, options = {}) => {
+    try {
+      const res = await fetch(url, options);
+      if (!res.ok) return { ok: false, status: res.status, data: null };
+      const data = await res.json();
+      return { ok: true, status: res.status, data };
+    } catch (err) {
+      return { ok: false, status: 500, error: err.message, data: null };
+    }
+  };
 
   // Fetch real prescriptions from API
   const fetchPrescriptions = async () => {
-    try {
-      const res = await fetch('/prescriptions', { headers: getAuthHeaders(false) });
-      const data = await res.json();
-      if (res.ok) {
-        setPrescriptions(data.prescriptions || []);
-      }
-    } catch (err) {
-      console.error('Error fetching prescriptions:', err);
+    const { ok, data } = await safeFetchJson('/prescriptions', { headers: getAuthHeaders(false) });
+    if (ok && data?.prescriptions) {
+      setPrescriptions(data.prescriptions);
     }
   };
 
@@ -228,7 +291,147 @@ export const UserDashboard = () => {
     fetchPrescriptions();
   }, [userProfile]);
 
-  // Load Admin Medicines Catalog via authenticated GET /medicines
+  // Fetch Appointments & Available Slots
+  const fetchAppointmentsAndSlots = async () => {
+    const [{ ok: appOk, data: appData }, { ok: slotOk, data: slotData }] = await Promise.all([
+      safeFetchJson('/appointments', { headers: getAuthHeaders(false) }),
+      safeFetchJson('/appointments/slots', { headers: getAuthHeaders(false) })
+    ]);
+
+    if (appOk && appData?.appointments) setAppointments(appData.appointments);
+    if (slotOk && slotData?.slots) setAvailableSlots(slotData.slots);
+  };
+
+  useEffect(() => {
+    fetchAppointmentsAndSlots();
+  }, [userProfile, activeTab]);
+
+  // Fetch Pharmacy Inventory for Marketplace
+  const fetchMarketplaceInventory = async () => {
+    const { ok, data } = await safeFetchJson('/pharmacy/inventory', { headers: getAuthHeaders(false) });
+    if (ok && data?.items) {
+      setMarketplaceItems(data.items);
+    }
+  };
+
+  // Fetch Patient Buying Orders
+  const fetchPatientOrders = async () => {
+    const { ok, data } = await safeFetchJson('/pharmacy/orders', { headers: getAuthHeaders(false) });
+    if (ok && data?.orders) {
+      setPatientOrders(data.orders);
+    }
+  };
+
+  useEffect(() => {
+    fetchMarketplaceInventory();
+    fetchPatientOrders();
+  }, [userProfile, activeTab]);
+
+  // Fetch Nearby Healthcare Facilities for Leaflet Map
+  const fetchNearbyFacilities = async () => {
+    try {
+      const res = await fetch('/org/search?query=', { headers: getAuthHeaders(false) });
+      const data = await res.json();
+      if (res.ok && data.organizations) {
+        setNearbyOrganizations(data.organizations);
+      }
+    } catch (err) {
+      console.error('Error fetching nearby organizations:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'map') {
+      fetchNearbyFacilities();
+    }
+  }, [activeTab]);
+
+  // Initialize Leaflet Map with invalidateSize fix
+  useEffect(() => {
+    let invalidateTimer;
+
+    if (activeTab === 'map' && mapContainerRef.current) {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+
+      const centerLat = parseFloat(activeProfile?.coordinates?.[1]) || 28.6139;
+      const centerLng = parseFloat(activeProfile?.coordinates?.[0]) || 77.2090;
+
+      const map = L.map(mapContainerRef.current, {
+        center: [centerLat, centerLng],
+        zoom: 13,
+        zoomControl: true
+      });
+      mapInstanceRef.current = map;
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+      }).addTo(map);
+
+      invalidateTimer = setTimeout(() => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.invalidateSize();
+        }
+      }, 250);
+
+      const userIcon = L.divIcon({
+        className: 'custom-user-marker',
+        html: `<div style="background: #0284c7; color: white; width: 34px; height: 34px; border-radius: 50%; border: 3px solid white; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 4px 12px rgba(2,132,199,0.4);">📍</div>`,
+        iconSize: [34, 34],
+        iconAnchor: [17, 17]
+      });
+
+      L.marker([centerLat, centerLng], { icon: userIcon })
+        .addTo(map)
+        .bindPopup(`<strong>${activeProfile?.name || 'Your Location'}</strong><br/>Patient Home Base`);
+
+      nearbyOrganizations.forEach((org) => {
+        const orgLat = parseFloat(org.coordinates?.[1]) || centerLat + (Math.random() - 0.5) * 0.05;
+        const orgLng = parseFloat(org.coordinates?.[0]) || centerLng + (Math.random() - 0.5) * 0.05;
+
+        const typeColor = 
+          org.facilityType === 'hospital' ? '#2563eb' :
+          org.facilityType === 'clinic' ? '#059669' :
+          org.facilityType === 'laboratory' ? '#7c3aed' : '#d97706';
+
+        const typeLabel = (org.facilityType || 'hospital').toUpperCase();
+
+        const orgIcon = L.divIcon({
+          className: 'custom-org-marker',
+          html: `<div style="background: ${typeColor}; color: white; width: 30px; height: 30px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.25);">${typeLabel[0]}</div>`,
+          iconSize: [30, 30],
+          iconAnchor: [15, 15]
+        });
+
+        const marker = L.marker([orgLat, orgLng], { icon: orgIcon }).addTo(map);
+        marker.bindPopup(`
+          <div style="padding: 4px; font-family: Plus Jakarta Sans, sans-serif; max-width: 220px;">
+            <div style="font-size: 10px; font-weight: 800; color: ${typeColor}; text-transform: uppercase;">${typeLabel}</div>
+            <strong style="font-size: 14px; color: #0f172a; display: block; margin: 2px 0;">${org.name}</strong>
+            <div style="font-size: 12px; color: #64748b;">📍 ${org.location?.city || 'City'}, ${org.location?.state || ''}</div>
+            <div style="font-size: 12px; color: #64748b; margin-top: 2px;">📞 ${org.contactNumber || 'Available'}</div>
+          </div>
+        `);
+
+        marker.on('click', () => {
+          setSelectedFacility(org);
+        });
+      });
+    }
+
+    return () => {
+      if (invalidateTimer) clearTimeout(invalidateTimer);
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, [activeTab, nearbyOrganizations, activeProfile]);
+
+  // Load Admin Medicines Catalog
   const fetchAdminMedicines = async () => {
     try {
       const res = await fetch('/medicines?limit=100', { headers: getAuthHeaders(false) });
@@ -249,7 +452,6 @@ export const UserDashboard = () => {
   const handleSearchOrganizations = async (query = '') => {
     setOrgSearchQuery(query);
     try {
-      setIsSearchingOrgs(true);
       const res = await fetch(`/org/search?query=${encodeURIComponent(query.trim())}`, { headers: getAuthHeaders(false) });
       const data = await res.json();
       if (res.ok) {
@@ -257,8 +459,6 @@ export const UserDashboard = () => {
       }
     } catch (err) {
       console.error('Error searching organizations:', err);
-    } finally {
-      setIsSearchingOrgs(false);
     }
   };
 
@@ -284,6 +484,114 @@ export const UserDashboard = () => {
       refreshUser();
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  // Create Consultation Slot (Doctor Side)
+  const handleCreateDoctorSlot = async (e) => {
+    e.preventDefault();
+    try {
+      setIsSubmitting(true);
+      setError('');
+      const res = await fetch('/appointments/slots', {
+        method: 'POST',
+        headers: getAuthHeaders(true),
+        body: JSON.stringify({
+          title: docSlotTitle,
+          slotDate: docSlotDate,
+          startTime: docStartTime,
+          endTime: docEndTime,
+          fee: parseFloat(docFee) || 0,
+          maxBookings: parseInt(docMaxBookings, 10) || 5,
+          consultationMode: docConsultationMode
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create slot.');
+
+      setSuccessMsg('Consultation slot published successfully!');
+      fetchAppointmentsAndSlots();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Add Item to Marketplace Cart
+  const handleAddToCart = (inventoryItem) => {
+    setCart(prev => {
+      const existing = prev.find(item => item._id === inventoryItem._id);
+      if (existing) {
+        return prev.map(item => item._id === inventoryItem._id ? { ...item, qty: item.qty + 1 } : item);
+      }
+      return [...prev, { ...inventoryItem, qty: 1 }];
+    });
+    setSuccessMsg(`Added ${inventoryItem.medicineId?.medicineName || 'Medicine'} to your cart!`);
+  };
+
+  // Checkout Medicine Cart
+  const handleCheckoutCart = async () => {
+    if (cart.length === 0) return;
+    try {
+      setIsSubmitting(true);
+      setError('');
+      const firstOrgId = cart[0]?.organizationId?._id || cart[0]?.organizationId;
+
+      const orderItems = cart.map(item => ({
+        inventoryId: item._id,
+        quantity: item.qty
+      }));
+
+      const res = await fetch('/pharmacy/orders', {
+        method: 'POST',
+        headers: getAuthHeaders(true),
+        body: JSON.stringify({
+          organizationId: firstOrgId,
+          items: orderItems
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to checkout cart.');
+
+      setSuccessMsg(`Order placed successfully! Order #${data.order?._id?.slice(-6).toUpperCase()}`);
+      setCart([]);
+      setShowCartModal(false);
+      fetchPatientOrders();
+      setActiveTab('my_orders');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Book Appointment Slot (Patient Side)
+  const handleBookSlot = async (slotId) => {
+    try {
+      setIsBookingSlot(true);
+      setError('');
+      let res = await fetch('/appointments/book', {
+        method: 'POST',
+        headers: getAuthHeaders(true),
+        body: JSON.stringify({ slotId, notes: 'Booked via ArogyaX Patient Portal' })
+      });
+      if (!res.ok) {
+        res = await fetch('/appointments', {
+          method: 'POST',
+          headers: getAuthHeaders(true),
+          body: JSON.stringify({ slotId, notes: 'Booked via ArogyaX Patient Portal' })
+        });
+      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to book appointment.');
+
+      setSuccessMsg('Appointment booked successfully! Confirmation sent to your portal.');
+      fetchAppointmentsAndSlots();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsBookingSlot(false);
     }
   };
 
@@ -313,12 +621,12 @@ export const UserDashboard = () => {
 
         ctx.fillStyle = '#64748b';
         ctx.font = '14px Plus Jakarta Sans, sans-serif';
-        ctx.fillText(`Patient: ${userProfile?.name || 'User'} (${userProfile?.bloodGroup || 'A+'})`, 40, 70);
+        ctx.fillText(`Patient: ${activeProfile?.name || 'User'} (${activeProfile?.bloodGroup || 'A+'})`, 40, 70);
 
         ctx.drawImage(img, 50, 90, 400, 370);
 
         const a = document.createElement('a');
-        a.download = `${(userProfile?.name || 'Patient').replace(/\s+/g, '_')}_ArogyaX_QR.png`;
+        a.download = `${(activeProfile?.name || 'Patient').replace(/\s+/g, '_')}_ArogyaX_QR.png`;
         a.href = canvas.toDataURL('image/png');
         a.click();
         setSuccessMsg('Patient QR Code image downloaded successfully!');
@@ -391,7 +699,7 @@ export const UserDashboard = () => {
     };
   };
 
-  // Camera Management
+  // Camera Management for Doctor QR Scanner
   const startCamera = async () => {
     try {
       setError('');
@@ -493,10 +801,13 @@ export const UserDashboard = () => {
       setError('');
       setSuccessMsg('');
 
+      const targetId = activeProfile?._id || userProfile._id;
+
       const payload = {
-        name: editName || userProfile.name || 'User',
+        name: editName || activeProfile.name || 'User',
         bloodGroup: editBloodGroup || 'A+',
         location: {
+          houseNo: editHouseNo || '',
           roomNo: editRoomNo || '',
           floorNo: parseInt(editFloorNo, 10) || 0,
           landmark: editLandmark || '',
@@ -507,7 +818,7 @@ export const UserDashboard = () => {
         coordinates: [parseFloat(editLng) || 77.2090, parseFloat(editLat) || 28.6139]
       };
 
-      if (userProfile.isDoctor) {
+      if (activeProfile.isDoctor) {
         payload.doctorDetails = {
           speciality: editSpeciality || 'General Medicine',
           certificateNo: editCertNo || `MCI-${Date.now()}`,
@@ -515,7 +826,7 @@ export const UserDashboard = () => {
         };
       }
 
-      const res = await fetch(`/user/profile/${userProfile._id}`, {
+      const res = await fetch(`/user/profile/${targetId}`, {
         method: 'PUT',
         headers: getAuthHeaders(true),
         credentials: 'include',
@@ -577,7 +888,7 @@ export const UserDashboard = () => {
     }
   };
 
-  // YouTube-Style Instant Search Suggestion Select Handler
+  // Instant Search Suggestion Select Handler
   const handleSelectYoutubeSuggestion = (index, medItem) => {
     const updated = [...medicationsList];
     const defaultDose = Array.isArray(medItem.dosage) ? medItem.dosage[0].toString() : (medItem.dosage || '500').toString();
@@ -700,7 +1011,248 @@ export const UserDashboard = () => {
     }
   };
 
-  const qrPayload = `AX|${userProfile?._id || 'PAT-1001'}|${qrToken}`;
+  // Handle Family Profile Search
+  const handleSearchFamilyUser = async (e) => {
+    e.preventDefault();
+    if (!familySearchEmail.trim()) return;
+    try {
+      setLoading(true);
+      setError('');
+      const res = await fetch(`/user/search?email=${encodeURIComponent(familySearchEmail.trim())}`, { headers: getAuthHeaders(false) });
+      const data = await res.json();
+      if (res.ok && data.user) {
+        setFamilySearchResult(data.user);
+      } else {
+        setFamilySearchResult(null);
+        setError(data.error || 'No registered patient found with this email.');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle Send Request / Create Family Member
+  const handleAddFamilyMember = async (e) => {
+    e.preventDefault();
+    try {
+      setIsSubmitting(true);
+      setError('');
+      const payload = familyAddMode === 'search' ? {
+        email: familySearchEmail.trim(),
+        relation: familyNewRelation
+      } : {
+        name: familyNewName.trim(),
+        bloodGroup: familyNewBloodGroup,
+        relation: familyNewRelation
+      };
+
+      const res = await fetch('/user/managed-profiles/request', {
+        method: 'POST',
+        headers: getAuthHeaders(true),
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to add family member profile.');
+
+      setSuccessMsg(data.message || 'Family member profile connected successfully!');
+      setShowAddFamilyModal(false);
+      refreshUser();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle Unlink Managed Profile
+  const handleRemoveManagedProfile = async (targetUserId) => {
+    if (!window.confirm('Unlink this family member profile?')) return;
+    try {
+      const res = await fetch(`/user/managed-profiles/${targetUserId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(false)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to unlink family profile.');
+
+      setSuccessMsg('Family member profile unlinked.');
+      if (selectedManagedProfile?._id === targetUserId) {
+        setSelectedManagedProfile(null);
+      }
+      refreshUser();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  // Visited Patients list for Doctor Panel History
+  const visitedPatients = React.useMemo(() => {
+    const map = new Map();
+    prescriptions.forEach(rx => {
+      if (rx.patientId) {
+        const pid = rx.patientId._id || rx.patientId.id || rx.patientId;
+        if (!map.has(pid)) {
+          map.set(pid, {
+            id: pid,
+            name: rx.patientId.name || 'Verified Patient',
+            bloodGroup: rx.patientId.bloodGroup || 'A+',
+            location: rx.patientId.location?.city || 'New Delhi',
+            visitCount: 1,
+            lastVisit: rx.createdAt,
+            latestRx: rx
+          });
+        } else {
+          const item = map.get(pid);
+          item.visitCount += 1;
+          if (new Date(rx.createdAt) > new Date(item.lastVisit)) {
+            item.lastVisit = rx.createdAt;
+            item.latestRx = rx;
+          }
+        }
+      }
+    });
+    return Array.from(map.values());
+  }, [prescriptions]);
+
+  // Filtered Appointments
+  const filteredAppointments = React.useMemo(() => {
+    return appointments.filter(app => {
+      const matchesSearch = 
+        !appointmentSearchQuery.trim() ||
+        (app.doctorId?.name || '').toLowerCase().includes(appointmentSearchQuery.toLowerCase()) ||
+        (app.organizationId?.name || '').toLowerCase().includes(appointmentSearchQuery.toLowerCase()) ||
+        (app.patientId?.name || '').toLowerCase().includes(appointmentSearchQuery.toLowerCase());
+
+      const matchesStatus = 
+        appointmentStatusFilter === 'all' || 
+        app.status === appointmentStatusFilter;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [appointments, appointmentSearchQuery, appointmentStatusFilter]);
+
+  // Filtered Marketplace Items
+  const filteredMarketplaceItems = React.useMemo(() => {
+    return marketplaceItems.filter(item => {
+      const query = marketplaceSearch.toLowerCase().trim();
+      if (!query) return true;
+      return (
+        (item.medicineId?.medicineName || '').toLowerCase().includes(query) ||
+        (item.companyName || '').toLowerCase().includes(query) ||
+        (item.organizationId?.name || '').toLowerCase().includes(query)
+      );
+    });
+  }, [marketplaceItems, marketplaceSearch]);
+
+  const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const qrPayload = `AX|${activeProfile?._id || 'PAT-1001'}|${qrToken}`;
+
+  // Doctor Prescription Creator Workspace
+  if (createRxWorkspace) {
+    return (
+      <div className="app-container" style={{ padding: '24px', maxWidth: '1000px', margin: '0 auto' }}>
+        <div className="white-panel" style={{ padding: '28px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', borderBottom: '2px solid #059669', paddingBottom: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button type="button" onClick={() => setCreateRxWorkspace(null)} className="btn-secondary" style={{ padding: '6px 12px' }}>
+                <ArrowLeft size={16} /><span>Back</span>
+              </button>
+              <div>
+                <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a' }}>Issue Medical Prescription</h2>
+                <p style={{ fontSize: '0.84rem', color: '#64748b' }}>Patient: <strong>{createRxWorkspace.patient.name}</strong> • Blood Group: <strong>{createRxWorkspace.patient.bloodGroup}</strong></p>
+              </div>
+            </div>
+            <span className="badge badge-approved" style={{ fontSize: '0.85rem' }}>OFFICIAL RX</span>
+          </div>
+
+          <form onSubmit={handleIssuePrescription} style={{ display: 'grid', gap: '20px' }}>
+            <div className="grid-2col" style={{ gap: '14px' }}>
+              <div className="form-group">
+                <label className="form-label">Consultation Fee (₹)</label>
+                <input type="number" className="form-input" value={consultationFee} onChange={(e) => setConsultationFee(e.target.value)} required />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Prescribing Practitioner</label>
+                <input type="text" className="form-input" value={`Dr. ${userProfile?.name}`} disabled />
+              </div>
+            </div>
+
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Prescribed Medications ({medicationsList.length})</h4>
+                <button type="button" onClick={handleAddMedicationRow} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.82rem' }}>
+                  <Plus size={14} /><span>Add Medication</span>
+                </button>
+              </div>
+
+              {medicationsList.map((med, idx) => (
+                <div key={idx} className="white-card" style={{ padding: '14px', marginBottom: '12px', borderLeft: '4px solid #059669', position: 'relative' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#059669' }}>Medication #{idx + 1}</span>
+                    {medicationsList.length > 1 && (
+                      <button type="button" onClick={() => handleRemoveMedicationRow(idx)} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer' }}>
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid-2col" style={{ gap: '10px', marginBottom: '10px' }}>
+                    <div className="form-group" style={{ position: 'relative' }}>
+                      <label className="form-label">Medicine Name</label>
+                      <input type="text" className="form-input" placeholder="Type medicine name..." value={med.searchQuery} onChange={(e) => handleUpdateMedRow(idx, 'searchQuery', e.target.value)} required />
+
+                      {med.showSuggestions && (
+                        <div style={{ position: 'absolute', left: 0, right: 0, top: '100%', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 100, maxHeight: '180px', overflowY: 'auto' }}>
+                          {catalogMedicines.filter(m => m.medicineName.toLowerCase().includes((med.searchQuery || '').toLowerCase())).slice(0, 6).map(cMed => (
+                            <div key={cMed._id} onClick={() => handleSelectYoutubeSuggestion(idx, cMed)} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '0.82rem', borderBottom: '1px solid #f1f5f9' }}>
+                              <strong>{cMed.medicineName}</strong> <span style={{ color: '#64748b', fontSize: '0.75rem' }}>({cMed.type || 'tablet'})</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid-2col" style={{ gap: '8px' }}>
+                      <div className="form-group">
+                        <label className="form-label">Dosage</label>
+                        <input type="text" className="form-input" value={med.dosage} onChange={(e) => handleUpdateMedRow(idx, 'dosage', e.target.value)} placeholder="500" required />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Unit</label>
+                        <select className="form-input" value={med.unit} onChange={(e) => handleUpdateMedRow(idx, 'unit', e.target.value)}>
+                          {['mg', 'ml', 'g', 'mcg', 'drop', 'capsule', 'tablet'].map(u => <option key={u} value={u}>{u}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid-2col" style={{ gap: '10px' }}>
+                    <div className="form-group">
+                      <label className="form-label">Times a Day</label>
+                      <input type="text" className="form-input" value={med.timesADay} onChange={(e) => handleUpdateMedRow(idx, 'timesADay', e.target.value)} placeholder="2" required />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Duration</label>
+                      <input type="text" className="form-input" value={med.howManyDays} onChange={(e) => handleUpdateMedRow(idx, 'howManyDays', e.target.value)} placeholder="5 days" required />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '14px' }}>
+              <button type="button" onClick={() => setCreateRxWorkspace(null)} className="btn-secondary" style={{ padding: '10px 20px' }}>Cancel</button>
+              <button type="submit" className="btn-success" disabled={isSubmitting} style={{ padding: '10px 24px' }}>
+                <span>{isSubmitting ? 'Issuing Rx...' : 'Issue Official Prescription'}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   // If viewing a specific prescription page
   if (selectedRxId) {
@@ -712,277 +1264,37 @@ export const UserDashboard = () => {
     );
   }
 
-  // FULL-PAGE PRESCRIPTION CREATION WORKSPACE WITH TABLE-STYLE UI & LAB REPORTS
-  if (createRxWorkspace && createRxWorkspace.patient) {
-    const { patient } = createRxWorkspace;
-
-    return (
-      <div style={{ maxWidth: '1200px', margin: '0 auto', width: '100%', padding: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
-          <button type="button" onClick={() => setCreateRxWorkspace(null)} className="btn-secondary">
-            <ArrowLeft size={16} />
-            <span>Cancel & Return to Workspace</span>
-          </button>
-
-          <span className="badge badge-approved" style={{ fontSize: '0.85rem' }}>
-            FULL-PAGE PRESCRIPTION CREATOR
-          </span>
-        </div>
-
-        <form onSubmit={handleIssuePrescription}>
-          <div className="white-panel" style={{ padding: '28px', marginBottom: '20px' }}>
-            {/* Patient Header Card */}
-            <div style={{ background: '#ecfdf5', padding: '16px 20px', borderRadius: '12px', marginBottom: '24px', border: '1px solid #a7f3d0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-              <div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#047857', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <CheckCircle2 size={20} />
-                  <span>Patient Verified: {patient.name}</span>
-                </h3>
-                <p style={{ fontSize: '0.84rem', color: '#065f46', marginTop: '2px' }}>
-                  Patient Identity ID: <strong>{patient.id}</strong> • Blood Group: <strong style={{ color: '#dc2626' }}>{patient.bloodGroup}</strong>
-                </p>
-              </div>
-
-              <button type="button" onClick={() => { setCreateRxWorkspace(null); setShowScanModal(true); }} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
-                Scan Different Patient
-              </button>
-            </div>
-
-            {/* Consultation Fee */}
-            <div className="form-group" style={{ maxWidth: '320px', marginBottom: '24px' }}>
-              <label className="form-label">Consultation Fee (₹)</label>
-              <input type="number" className="form-input" value={consultationFee} onChange={(e) => setConsultationFee(e.target.value)} required />
-            </div>
-
-            {/* PRESCRIBED MEDICATIONS TABLE STYLE UI */}
-            <div style={{ marginBottom: '28px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Pill size={20} color="#0284c7" />
-                  <span>Prescribed Medications Table</span>
-                </h3>
-
-                <button type="button" onClick={handleAddMedicationRow} className="btn-primary" style={{ padding: '8px 14px' }}>
-                  <Plus size={16} />
-                  <span>Add Medicine Row</span>
-                </button>
-              </div>
-
-              <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '12px', background: '#ffffff' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.86rem' }}>
-                  <thead>
-                    <tr style={{ background: '#0284c7', color: '#ffffff', textAlign: 'left' }}>
-                      <th style={{ padding: '12px', width: '40px' }}>#</th>
-                      <th style={{ padding: '12px', minWidth: '240px' }}>Medicine Name (Live Autocomplete)</th>
-                      <th style={{ padding: '12px', minWidth: '160px' }}>Form & Dosage</th>
-                      <th style={{ padding: '12px', minWidth: '130px' }}>Frequency</th>
-                      <th style={{ padding: '12px', minWidth: '140px' }}>Meal Timing</th>
-                      <th style={{ padding: '12px', minWidth: '110px' }}>Duration</th>
-                      <th style={{ padding: '12px', minWidth: '180px' }}>Directions & Notes</th>
-                      <th style={{ padding: '12px', width: '50px', textAlign: 'center' }}>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {medicationsList.map((med, index) => {
-                      const suggestions = catalogMedicines.filter(m => 
-                        m.medicineName.toLowerCase().includes((med.searchQuery || '').toLowerCase()) ||
-                        (m.category && m.category.toLowerCase().includes((med.searchQuery || '').toLowerCase()))
-                      );
-
-                      return (
-                        <tr key={index} style={{ borderBottom: '1px solid var(--border-color)', background: index % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
-                          <td style={{ padding: '12px', fontWeight: 700, color: 'var(--text-dim)' }}>{index + 1}</td>
-                          
-                          {/* Live Autocomplete Column */}
-                          <td style={{ padding: '12px', position: 'relative' }}>
-                            <input
-                              type="text"
-                              className="form-input"
-                              placeholder="Search Admin Catalog (e.g. Paracetamol)..."
-                              value={med.searchQuery || med.medicineName}
-                              onFocus={() => handleUpdateMedRow(index, 'showSuggestions', true)}
-                              onChange={(e) => handleUpdateMedRow(index, 'searchQuery', e.target.value)}
-                              required
-                            />
-
-                            {/* Suggestions Overlay */}
-                            {med.showSuggestions && (
-                              <div style={{
-                                position: 'absolute',
-                                top: '100%',
-                                left: '12px',
-                                right: '12px',
-                                background: '#ffffff',
-                                border: '1px solid #bae6fd',
-                                borderRadius: '10px',
-                                boxShadow: '0 10px 25px rgba(0,0,0,0.18)',
-                                zIndex: 100,
-                                maxHeight: '220px',
-                                overflowY: 'auto',
-                                marginTop: '4px'
-                              }}>
-                                <div style={{ padding: '6px 12px', background: '#e0f2fe', fontSize: '0.72rem', fontWeight: 800, color: '#0369a1', borderBottom: '1px solid #bae6fd', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                  <span>{suggestions.length} Catalog Matches</span>
-                                  <button type="button" onClick={() => handleUpdateMedRow(index, 'showSuggestions', false)} style={{ background: 'none', border: 'none', color: '#0369a1', cursor: 'pointer' }}><X size={12} /></button>
-                                </div>
-
-                                {suggestions.length === 0 ? (
-                                  <div style={{ padding: '10px', fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-                                    No catalog matches. Type manually.
-                                  </div>
-                                ) : (
-                                  suggestions.map((sug) => (
-                                    <div
-                                      key={sug._id}
-                                      onClick={() => handleSelectYoutubeSuggestion(index, sug)}
-                                      style={{ padding: '8px 12px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }}
-                                      onMouseEnter={(e) => e.currentTarget.style.background = '#f0f9ff'}
-                                      onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
-                                    >
-                                      <div>
-                                        <strong style={{ fontSize: '0.85rem', color: 'var(--text-main)', display: 'block' }}>{sug.medicineName}</strong>
-                                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{sug.category || 'General'}</span>
-                                      </div>
-                                      <span style={{ fontSize: '0.72rem', color: '#0284c7', fontWeight: 700 }}>
-                                        {Array.isArray(sug.dosage) ? sug.dosage.join('/') : sug.dosage}{sug.unit}
-                                      </span>
-                                    </div>
-                                  ))
-                                )}
-                              </div>
-                            )}
-                          </td>
-
-                          {/* Form & Dosage */}
-                          <td style={{ padding: '12px' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              <select className="form-input" style={{ fontSize: '0.8rem' }} value={med.type} onChange={(e) => handleUpdateMedRow(index, 'type', e.target.value)}>
-                                {['oral_tablet', 'capsule', 'syrup', 'injection', 'lotion', 'gel', 'ointment', 'drops', 'inhaler'].map(t => (
-                                  <option key={t} value={t}>{t.replace('_', ' ')}</option>
-                                ))}
-                              </select>
-                              <div style={{ display: 'flex', gap: '4px' }}>
-                                <input type="text" className="form-input" style={{ flex: 1, fontSize: '0.8rem' }} value={med.dosage} onChange={(e) => handleUpdateMedRow(index, 'dosage', e.target.value)} required />
-                                <select className="form-input" style={{ width: '60px', fontSize: '0.75rem' }} value={med.unit} onChange={(e) => handleUpdateMedRow(index, 'unit', e.target.value)}>
-                                  {['mg', 'ml', 'g', 'mcg', 'IU', 'puffs'].map(u => (
-                                    <option key={u} value={u}>{u}</option>
-                                  ))}
-                                </select>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Frequency */}
-                          <td style={{ padding: '12px' }}>
-                            <select className="form-input" style={{ fontSize: '0.8rem' }} value={med.timesADay} onChange={(e) => handleUpdateMedRow(index, 'timesADay', e.target.value)}>
-                              <option value="1">1x Daily</option>
-                              <option value="2">2x Daily</option>
-                              <option value="3">3x Daily</option>
-                              <option value="4">4x Daily</option>
-                            </select>
-                          </td>
-
-                          {/* Meal Timing */}
-                          <td style={{ padding: '12px' }}>
-                            <label style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                              <input type="checkbox" checked={med.beforeEating} onChange={(e) => handleUpdateMedRow(index, 'beforeEating', e.target.checked)} />
-                              <span>{med.beforeEating ? 'Before Food' : 'After Food'}</span>
-                            </label>
-                          </td>
-
-                          {/* Duration */}
-                          <td style={{ padding: '12px' }}>
-                            <input type="text" className="form-input" style={{ fontSize: '0.8rem' }} value={med.howManyDays} onChange={(e) => handleUpdateMedRow(index, 'howManyDays', e.target.value)} required />
-                          </td>
-
-                          {/* Directions */}
-                          <td style={{ padding: '12px' }}>
-                            <input type="text" className="form-input" style={{ fontSize: '0.8rem' }} value={med.instructions} onChange={(e) => handleUpdateMedRow(index, 'instructions', e.target.value)} placeholder="e.g. Take with warm water..." />
-                          </td>
-
-                          {/* Action */}
-                          <td style={{ padding: '12px', textAlign: 'center' }}>
-                            {medicationsList.length > 1 && (
-                              <button type="button" onClick={() => handleRemoveMedicationRow(index)} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer' }}>
-                                <X size={16} />
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* LAB REPORT ATTACHMENTS SECTION */}
-            <div style={{ marginBottom: '28px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Paperclip size={20} color="#059669" />
-                  <span>Attach Diagnostic Lab Reports (PDF Document URLs)</span>
-                </h3>
-
-                <button type="button" onClick={handleAddReportRow} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
-                  <Plus size={14} />
-                  <span>Attach Another Report</span>
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {reportAttachments.map((rep, idx) => (
-                  <div key={idx} style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                    <input
-                      type="text"
-                      className="form-input"
-                      style={{ flex: 1, minWidth: '180px' }}
-                      placeholder="Report Title (e.g. CBC Blood Test)"
-                      value={rep.title}
-                      onChange={(e) => handleUpdateReportRow(idx, 'title', e.target.value)}
-                    />
-                    <input
-                      type="text"
-                      className="form-input"
-                      style={{ flex: 2, minWidth: '240px' }}
-                      placeholder="Report File / PDF Document URL (e.g. https://.../cbc-report.pdf)"
-                      value={rep.fileUrl}
-                      onChange={(e) => handleUpdateReportRow(idx, 'fileUrl', e.target.value)}
-                    />
-                    <input
-                      type="text"
-                      className="form-input"
-                      style={{ flex: 1, minWidth: '150px' }}
-                      placeholder="Lab Name (Optional)"
-                      value={rep.labName}
-                      onChange={(e) => handleUpdateReportRow(idx, 'labName', e.target.value)}
-                    />
-                    {reportAttachments.length > 1 && (
-                      <button type="button" onClick={() => handleRemoveReportRow(idx)} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer' }}>
-                        <X size={16} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button type="button" onClick={() => setCreateRxWorkspace(null)} className="btn-secondary" style={{ padding: '10px 20px' }}>Cancel</button>
-              <button type="submit" className="btn-success" disabled={isSubmitting} style={{ padding: '10px 24px', fontSize: '0.95rem' }}>
-                {isSubmitting ? 'Issuing Prescription...' : 'Issue Official Prescription'}
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
-    );
-  }
-
   return (
     <div className="app-container">
       {/* USER SIDEBAR NAVIGATION */}
       <aside className="app-sidebar">
+        {/* Managed Family Profiles View Switcher Header */}
+        {userProfile?.managedProfiles && userProfile.managedProfiles.length > 0 && (
+          <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '12px', padding: '10px', marginBottom: '12px' }}>
+            <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#0369a1', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>Active Viewing Profile</span>
+            <select 
+              className="form-input" 
+              style={{ fontSize: '0.82rem', padding: '6px', fontWeight: 700 }}
+              value={selectedManagedProfile ? selectedManagedProfile._id : 'main'}
+              onChange={(e) => {
+                if (e.target.value === 'main') {
+                  setSelectedManagedProfile(null);
+                } else {
+                  const match = userProfile.managedProfiles.find(p => p._id === e.target.value || p.id === e.target.value);
+                  if (match) setSelectedManagedProfile(match);
+                }
+              }}
+            >
+              <option value="main">👤 {userProfile.name} (Primary Profile)</option>
+              {userProfile.managedProfiles.map((mp) => (
+                <option key={mp._id || mp.id} value={mp._id || mp.id}>
+                  👨‍👩‍👧 {mp.name || 'Family Member'} ({mp.bloodGroup || 'A+'})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Doctor Mode Switcher */}
         {userProfile?.isDoctor && (
           <div style={{
@@ -1027,6 +1339,9 @@ export const UserDashboard = () => {
             <button type="button" onClick={() => setActiveTab('prescriptions')} className="btn-secondary" style={{ justifyContent: 'flex-start', background: activeTab === 'prescriptions' ? '#ecfdf5' : 'transparent', borderColor: activeTab === 'prescriptions' ? '#a7f3d0' : 'transparent', color: activeTab === 'prescriptions' ? '#059669' : 'var(--text-muted)' }}>
               <FileText size={16} /><span>Issued Prescriptions ({prescriptions.length})</span>
             </button>
+            <button type="button" onClick={() => setActiveTab('appointments')} className="btn-secondary" style={{ justifyContent: 'flex-start', background: activeTab === 'appointments' ? '#ecfdf5' : 'transparent', borderColor: activeTab === 'appointments' ? '#a7f3d0' : 'transparent', color: activeTab === 'appointments' ? '#059669' : 'var(--text-muted)' }}>
+              <Calendar size={16} /><span>Appointments Manager</span>
+            </button>
           </nav>
         )}
 
@@ -1043,8 +1358,23 @@ export const UserDashboard = () => {
             <button type="button" onClick={() => setActiveTab('prescriptions')} className="btn-secondary" style={{ justifyContent: 'flex-start', background: activeTab === 'prescriptions' ? '#f0f9ff' : 'transparent', borderColor: activeTab === 'prescriptions' ? '#bae6fd' : 'transparent', color: activeTab === 'prescriptions' ? '#0284c7' : 'var(--text-muted)' }}>
               <Pill size={16} /><span>My Prescriptions ({prescriptions.length})</span>
             </button>
-            <button type="button" onClick={() => setActiveTab('reports')} className="btn-secondary" style={{ justifyContent: 'flex-start', background: activeTab === 'reports' ? '#f0f9ff' : 'transparent', borderColor: activeTab === 'reports' ? '#bae6fd' : 'transparent', color: activeTab === 'reports' ? '#0284c7' : 'var(--text-muted)' }}>
-              <FileText size={16} /><span>Lab Reports</span>
+            <button type="button" onClick={() => setActiveTab('marketplace')} className="btn-secondary" style={{ justifyContent: 'flex-start', background: activeTab === 'marketplace' ? '#ecfdf5' : 'transparent', borderColor: activeTab === 'marketplace' ? '#a7f3d0' : 'transparent', color: activeTab === 'marketplace' ? '#059669' : 'var(--text-muted)' }}>
+              <ShoppingBag size={16} /><span>Medicine Marketplace</span>
+            </button>
+            <button type="button" onClick={() => { setActiveTab('my_orders'); fetchPatientOrders(); }} className="btn-secondary" style={{ justifyContent: 'flex-start', background: activeTab === 'my_orders' ? '#ecfdf5' : 'transparent', borderColor: activeTab === 'my_orders' ? '#a7f3d0' : 'transparent', color: activeTab === 'my_orders' ? '#059669' : 'var(--text-muted)' }}>
+              <Receipt size={16} /><span>My Orders & Bills ({patientOrders.length})</span>
+            </button>
+            <button type="button" onClick={() => setActiveTab('map')} className="btn-secondary" style={{ justifyContent: 'flex-start', background: activeTab === 'map' ? '#f0f9ff' : 'transparent', borderColor: activeTab === 'map' ? '#bae6fd' : 'transparent', color: activeTab === 'map' ? '#0284c7' : 'var(--text-muted)' }}>
+              <MapPin size={16} /><span>Nearby Healthcare Map</span>
+            </button>
+            <button type="button" onClick={() => setActiveTab('managed_profiles')} className="btn-secondary" style={{ justifyContent: 'flex-start', background: activeTab === 'managed_profiles' ? '#f0f9ff' : 'transparent', borderColor: activeTab === 'managed_profiles' ? '#bae6fd' : 'transparent', color: activeTab === 'managed_profiles' ? '#0284c7' : 'var(--text-muted)' }}>
+              <Users size={16} /><span>Family Profiles ({userProfile?.managedProfiles?.length || 0})</span>
+            </button>
+            <button type="button" onClick={() => setActiveTab('appointments')} className="btn-secondary" style={{ justifyContent: 'flex-start', background: activeTab === 'appointments' ? '#f0f9ff' : 'transparent', borderColor: activeTab === 'appointments' ? '#bae6fd' : 'transparent', color: activeTab === 'appointments' ? '#0284c7' : 'var(--text-muted)' }}>
+              <Calendar size={16} /><span>Appointments ({appointments.length})</span>
+            </button>
+            <button type="button" onClick={() => setActiveTab('analytics')} className="btn-secondary" style={{ justifyContent: 'flex-start', background: activeTab === 'analytics' ? '#f0f9ff' : 'transparent', borderColor: activeTab === 'analytics' ? '#bae6fd' : 'transparent', color: activeTab === 'analytics' ? '#0284c7' : 'var(--text-muted)' }}>
+              <BarChart3 size={16} /><span>Health Analytics</span>
             </button>
           </nav>
         )}
@@ -1072,178 +1402,257 @@ export const UserDashboard = () => {
           <div className="white-panel" style={{ padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
               <div>
-                <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)' }}>Personal Health Profile</h3>
-                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Manage location, blood group, and account details.</p>
+                <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                  {selectedManagedProfile ? `Family Profile: ${activeProfile.name}` : 'Personal Health Profile'}
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Manage location, blood group, house/room details, and coordinates.</p>
               </div>
-              <button type="button" onClick={() => setShowEditModal(true)} className="btn-primary" style={{ padding: '8px 14px' }}>
-                <Edit3 size={16} /><span>Edit Profile</span>
+
+              <button type="button" onClick={() => setShowEditModal(true)} className="btn-primary" style={{ padding: '8px 16px' }}>
+                <Edit3 size={16} />
+                <span>Edit Profile</span>
               </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', fontSize: '0.88rem' }}>
-              <div className="white-card" style={{ padding: '14px' }}>
-                <span className="form-label" style={{ display: 'block', marginBottom: '4px' }}>Full Name</span>
-                <strong style={{ color: 'var(--text-main)', fontSize: '1rem' }}>{userProfile?.name}</strong>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+              <div className="white-card" style={{ padding: '16px' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Full Name</span>
+                <h4 style={{ fontSize: '1.1rem', color: '#0f172a', margin: '4px 0 0 0' }}>{activeProfile?.name || 'User'}</h4>
               </div>
 
-              <div className="white-card" style={{ padding: '14px' }}>
-                <span className="form-label" style={{ display: 'block', marginBottom: '4px' }}>Blood Group</span>
-                <strong style={{ color: '#dc2626', fontSize: '1rem' }}>{userProfile?.bloodGroup || 'Not specified'}</strong>
+              <div className="white-card" style={{ padding: '16px' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Blood Group</span>
+                <h4 style={{ fontSize: '1.1rem', color: '#dc2626', margin: '4px 0 0 0' }}>{activeProfile?.bloodGroup || 'A+'}</h4>
               </div>
 
-              <div className="white-card" style={{ padding: '14px', gridColumn: 'span 2' }}>
-                <span className="form-label" style={{ display: 'block', marginBottom: '4px' }}>Full Location Address</span>
-                <p style={{ color: 'var(--text-main)', fontWeight: 600 }}>
-                  {userProfile?.location?.roomNo ? `Room ${userProfile.location.roomNo}, ` : ''}
-                  {userProfile?.location?.floorNo ? `Floor ${userProfile.location.floorNo}, ` : ''}
-                  {userProfile?.location?.landmark ? `Landmark: ${userProfile.location.landmark}, ` : ''}
-                  {userProfile?.location?.city || 'New Delhi'}, {userProfile?.location?.state || 'Delhi'} - {userProfile?.location?.pincode || '110001'}
+              <div className="white-card" style={{ padding: '16px' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Full Residential Address</span>
+                <p style={{ fontSize: '0.9rem', color: '#334155', margin: '4px 0 0 0', lineHeight: 1.4 }}>
+                  {activeProfile?.location?.houseNo ? `House No. ${activeProfile.location.houseNo}, ` : ''}
+                  {activeProfile?.location?.roomNo ? `Room No. ${activeProfile.location.roomNo}, ` : ''}
+                  {activeProfile?.location?.floorNo ? `Floor ${activeProfile.location.floorNo}, ` : ''}
+                  {activeProfile?.location?.landmark ? `Landmark: ${activeProfile.location.landmark}, ` : ''}
+                  {activeProfile?.location?.city || 'New Delhi'}, {activeProfile?.location?.state || 'Delhi'} - {activeProfile?.location?.pincode || '110001'}
                 </p>
               </div>
 
-              <div className="white-card" style={{ padding: '14px', gridColumn: 'span 2' }}>
-                <span className="form-label" style={{ display: 'block', marginBottom: '4px' }}>GPS Coordinates</span>
-                <p style={{ color: '#0284c7', fontWeight: 700 }}>
-                  Longitude: {userProfile?.coordinates?.[0] || '77.2090'} | Latitude: {userProfile?.coordinates?.[1] || '28.6139'}
+              <div className="white-card" style={{ padding: '16px' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>GPS Coordinates</span>
+                <p style={{ fontSize: '0.9rem', color: '#0284c7', fontWeight: 700, margin: '4px 0 0 0' }}>
+                  📍 [{activeProfile?.coordinates?.[0] ?? '77.2090'}, {activeProfile?.coordinates?.[1] ?? '28.6139'}]
                 </p>
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 2: HEALTH IDENTITY QR CODE WITH DOWNLOAD PNG BUTTON */}
-        {activeTab === 'qrcode' && (
+        {/* DOCTOR PRACTITIONER & AFFILIATION TAB */}
+        {activeTab === 'practitioner' && (
           <div className="white-panel" style={{ padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
               <div>
                 <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <QrCode size={22} color="#0284c7" />
-                  <span>Digital Health QR Passport</span>
+                  <Stethoscope size={22} color="#059669" />
+                  <span>Doctor Practitioner Credentials & Hospital Affiliation</span>
                 </h3>
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                  Show or download this QR code to grant doctors access to your prescription portal.
+                  Manage medical license certificates, speciality, and affiliate with registered hospitals or clinics.
                 </p>
               </div>
 
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button type="button" onClick={handleDownloadQRImage} className="btn-success" style={{ padding: '8px 14px' }}>
-                  <Download size={15} />
-                  <span>Download QR Code Image</span>
-                </button>
-                <button type="button" onClick={handleRegenerateQR} className="btn-primary" style={{ padding: '8px 14px' }}>
-                  <RefreshCw size={15} />
-                  <span>Refresh Token</span>
-                </button>
+              <button type="button" onClick={() => setShowEditModal(true)} className="btn-primary" style={{ background: '#059669', padding: '8px 16px' }}>
+                <Edit3 size={16} />
+                <span>Edit Credentials</span>
+              </button>
+            </div>
+
+            {/* Doctor Credentials Details */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+              <div className="white-card" style={{ padding: '16px', borderLeft: '4px solid #059669' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Medical Practitioner</span>
+                <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: '4px 0 0 0' }}>Dr. {userProfile?.name}</h4>
+              </div>
+
+              <div className="white-card" style={{ padding: '16px', borderLeft: '4px solid #0284c7' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Speciality</span>
+                <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0284c7', margin: '4px 0 0 0' }}>
+                  {userProfile?.doctorDetails?.speciality || 'General Medicine'}
+                </h4>
+              </div>
+
+              <div className="white-card" style={{ padding: '16px', borderLeft: '4px solid #7c3aed' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Medical Certificate No.</span>
+                <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#7c3aed', margin: '4px 0 0 0' }}>
+                  {userProfile?.doctorDetails?.certificateNo || 'MCI-REG-99182'}
+                </h4>
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '28px', background: '#f8fafc', borderRadius: '16px', border: '1px dashed #cbd5e1' }}>
-              <QRCodeSVG value={qrPayload} size={230} />
+            {/* Current Affiliated Organizations Status */}
+            <div style={{ marginBottom: '28px' }}>
+              <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Building2 size={18} color="#0284c7" />
+                <span>Current Hospital / Clinic Affiliations</span>
+              </h4>
 
-              <div style={{ textAlign: 'center', marginTop: '16px' }}>
-                <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)' }}>{userProfile?.name}</h4>
-                <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)' }}>
-                  Blood Group: <strong style={{ color: '#dc2626' }}>{userProfile?.bloodGroup || 'A+'}</strong> • Location: <strong>{userProfile?.location?.city || 'New Delhi'}</strong>
-                </p>
-                <div style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#e0f2fe', color: '#0369a1', padding: '4px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700 }}>
-                  <ShieldCheck size={14} />
-                  <span>Active Token: {qrToken}</span>
+              {(!userProfile?.doctorDetails?.affiliateOrganization && (!userProfile?.doctorDetails?.affiliatedOrganizations || userProfile.doctorDetails.affiliatedOrganizations.length === 0)) ? (
+                <div style={{ background: '#fff7ed', border: '1px solid #ffedd5', borderRadius: '12px', padding: '16px', color: '#c2410c', fontSize: '0.86rem' }}>
+                  ⚠️ You are currently not affiliated with any registered hospital or clinic. Search below and send an affiliation request.
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: PRESCRIPTIONS LIST & TABULAR VIEW */}
-        {activeTab === 'prescriptions' && (
-          <div className="white-panel" style={{ padding: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
-              <div>
-                <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Pill size={22} color="#0284c7" />
-                  <span>{activeMode === 'doctor' ? 'Issued Medical Prescriptions' : 'My Prescriptions'}</span>
-                </h3>
-                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                  {activeMode === 'doctor' ? 'Prescriptions issued to patients via QR Code Scanning.' : 'Official medical prescriptions issued by verified practitioners.'}
-                </p>
-              </div>
-
-              {activeMode === 'doctor' && (
-                <button type="button" onClick={() => { setShowScanModal(true); fetchAdminMedicines(); }} className="btn-success" style={{ padding: '8px 14px' }}>
-                  <QrCode size={16} />
-                  <span>New Prescription via QR Scan</span>
-                </button>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px' }}>
+                  {userProfile.doctorDetails?.affiliateOrganization && (
+                    <div className="white-card" style={{ padding: '16px', borderLeft: '4px solid #059669' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                          <h5 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>
+                            {userProfile.doctorDetails.affiliateOrganization.name || 'Affiliated Hospital'}
+                          </h5>
+                          <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                            {userProfile.doctorDetails.affiliateOrganization.facilityType?.toUpperCase()}
+                          </span>
+                        </div>
+                        <span className={`badge ${userProfile.doctorDetails.affiliateOrganizationApprovalStatus === 'approved' ? 'badge-approved' : 'badge-pending'}`}>
+                          {(userProfile.doctorDetails.affiliateOrganizationApprovalStatus || 'approved').toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {userProfile.doctorDetails?.affiliatedOrganizations?.map(org => (
+                    <div key={org._id || org.id} className="white-card" style={{ padding: '16px', borderLeft: '4px solid #059669' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                          <h5 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>{org.name}</h5>
+                          <span style={{ fontSize: '0.78rem', color: '#64748b' }}>{(org.facilityType || 'Hospital').toUpperCase()}</span>
+                        </div>
+                        <span className="badge badge-approved">AFFILIATED</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
 
+            {/* Search Organizations to Affiliate */}
+            <div>
+              <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', marginBottom: '12px' }}>
+                Search Registered Hospitals & Clinics to Request Affiliation
+              </h4>
+
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    style={{ paddingLeft: '36px', fontSize: '0.86rem' }} 
+                    placeholder="Search hospital by name, city, or facility type..." 
+                    value={orgSearchQuery}
+                    onChange={(e) => handleSearchOrganizations(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {orgSearchResults.length === 0 ? (
+                <p style={{ fontSize: '0.85rem', color: '#64748b' }}>No healthcare organizations found matching search query.</p>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px' }}>
+                  {orgSearchResults.map(org => (
+                    <div key={org._id} className="white-card" style={{ padding: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                        <div>
+                          <h5 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>{org.name}</h5>
+                          <span style={{ fontSize: '0.78rem', color: '#0284c7', fontWeight: 700 }}>
+                            📍 {org.location?.city || 'City'}, {org.location?.state || ''}
+                          </span>
+                        </div>
+                        <span className="badge badge-pending">{(org.facilityType || 'hospital').toUpperCase()}</span>
+                      </div>
+
+                      <button 
+                        type="button" 
+                        onClick={() => handleSendAffiliationRequest(org._id, org.name)} 
+                        className="btn-primary" 
+                        style={{ width: '100%', marginTop: '10px', padding: '8px', fontSize: '0.82rem', justifyContent: 'center' }}
+                      >
+                        <UserPlus size={14} />
+                        <span>Send Affiliation Request</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: HEALTH IDENTITY QR */}
+        {activeTab === 'qrcode' && (
+          <div className="white-panel" style={{ padding: '24px', textAlign: 'center' }}>
+            <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '6px' }}>
+              Official Health Identity QR
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', maxWidth: '500px', margin: '0 auto 20px auto' }}>
+              Present this encrypted QR code to doctors or clinics to grant instant verification and access to your medical history.
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+              <QRCodeSVG value={qrPayload} size={240} />
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button type="button" onClick={handleDownloadQRImage} className="btn-primary" style={{ padding: '10px 18px' }}>
+                <Download size={16} />
+                <span>Download QR Image (PNG)</span>
+              </button>
+
+              <button type="button" onClick={handleRegenerateQR} className="btn-secondary" style={{ padding: '10px 18px' }}>
+                <RefreshCw size={16} />
+                <span>Regenerate Security Token</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: PRESCRIPTIONS LIST */}
+        {activeTab === 'prescriptions' && (
+          <div className="white-panel" style={{ padding: '24px' }}>
+            <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '16px' }}>
+              {activeMode === 'doctor' ? 'Issued Prescriptions' : 'My Medical Prescriptions'}
+            </h3>
+
             {prescriptions.length === 0 ? (
-              <div style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)', background: '#f8fafc', borderRadius: '12px' }}>
-                <Pill size={40} color="var(--text-dim)" style={{ margin: '0 auto 10px auto' }} />
-                <p style={{ fontSize: '0.9rem', fontWeight: 600 }}>No active prescriptions found.</p>
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                <Pill size={40} style={{ margin: '0 auto 12px auto', color: '#94a3b8' }} />
+                <p style={{ fontSize: '0.95rem' }}>No prescriptions found in record.</p>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {prescriptions.map((rx) => (
-                  <div key={rx._id} className="white-card" style={{ padding: '20px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-                      <div>
-                        <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                          Prescription #{rx._id.slice(-6).toUpperCase()}
-                        </h4>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                          Issued by <strong>{rx.doctorId?.name || 'Practitioner'}</strong> for <strong>{rx.patientId?.name || 'Patient'}</strong> on {new Date(rx.createdAt || Date.now()).toLocaleDateString()}
-                        </p>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <button type="button" onClick={() => setSelectedRxId(rx._id)} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem', color: '#0284c7', borderColor: '#bae6fd' }}>
-                          <Eye size={15} />
-                          <span>View Official Rx Page</span>
-                        </button>
-                        {rx.consultationFee > 0 && (
-                          <span style={{ background: '#fff7ed', color: '#ea580c', padding: '4px 10px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700 }}>
-                            Fee: ₹{rx.consultationFee}
-                          </span>
-                        )}
-                        <span className="badge badge-approved">{rx.status || 'Active'}</span>
-                        {(userProfile?.isDoctor || userProfile?.role === 'admin') && (
-                          <button type="button" onClick={() => handleDeletePrescription(rx._id)} className="btn-danger" style={{ padding: '4px 8px', fontSize: '0.75rem' }}>
-                            <Trash2 size={13} />
-                          </button>
-                        )}
-                      </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {prescriptions.map(rx => (
+                  <div key={rx._id} className="white-card" style={{ padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                    <div>
+                      <h4 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>
+                        Rx #{rx._id.slice(-6).toUpperCase()}
+                      </h4>
+                      <p style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '2px' }}>
+                        Patient: <strong>{rx.patientId?.name || 'Verified Patient'}</strong> • Fee: ₹{rx.consultationFee || 0} • Date: {new Date(rx.createdAt).toLocaleDateString()}
+                      </p>
+                      <span className="badge badge-approved" style={{ marginTop: '6px', display: 'inline-block' }}>
+                        {rx.medications?.length || 0} Prescribed Medications
+                      </span>
                     </div>
 
-                    {/* Medications Subdocuments Tabular Table */}
-                    <div style={{ overflowX: 'auto', background: '#f8fafc', borderRadius: '10px', padding: '12px', border: '1px solid var(--border-color)' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-                        <thead>
-                          <tr style={{ textAlign: 'left', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)' }}>
-                            <th style={{ padding: '6px' }}>Medicine</th>
-                            <th style={{ padding: '6px' }}>Dosage & Form</th>
-                            <th style={{ padding: '6px' }}>Frequency</th>
-                            <th style={{ padding: '6px' }}>Meal Timing</th>
-                            <th style={{ padding: '6px' }}>Duration</th>
-                            <th style={{ padding: '6px' }}>Directions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {Array.isArray(rx.medications) && rx.medications.map((med, idx) => (
-                            <tr key={idx} style={{ borderBottom: idx < rx.medications.length - 1 ? '1px dashed #cbd5e1' : 'none' }}>
-                              <td style={{ padding: '8px 6px', fontWeight: 700, color: 'var(--text-main)' }}>{med.medicineName}</td>
-                              <td style={{ padding: '8px 6px' }}>{med.dosage}{med.unit} ({med.type?.replace('_', ' ')})</td>
-                              <td style={{ padding: '8px 6px' }}>{med.timesADay}x daily ({med.quantity} qty)</td>
-                              <td style={{ padding: '8px 6px' }}>
-                                <span style={{ background: med.beforeEating ? '#fff7ed' : '#ecfdf5', color: med.beforeEating ? '#ea580c' : '#047857', padding: '2px 6px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 700 }}>
-                                  {med.beforeEating ? 'Before Food' : 'After Food'}
-                                </span>
-                              </td>
-                              <td style={{ padding: '8px 6px' }}>{med.howManyDays}</td>
-                              <td style={{ padding: '8px 6px', color: 'var(--text-muted)', fontStyle: 'italic' }}>{med.instructions || med.notes || '-'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button type="button" onClick={() => setSelectedRxId(rx._id)} className="btn-primary" style={{ padding: '6px 14px', fontSize: '0.82rem' }}>
+                        <Eye size={14} />
+                        <span>View Detailed Rx & Get Low-Cost Medicines</span>
+                      </button>
+
+                      {activeMode === 'doctor' && (
+                        <button type="button" onClick={() => handleDeletePrescription(rx._id)} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.82rem', color: '#dc2626', borderColor: '#fecaca' }}>
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1252,248 +1661,855 @@ export const UserDashboard = () => {
           </div>
         )}
 
-        {/* TAB 4: LAB REPORTS */}
-        {activeTab === 'reports' && (
+        {/* TAB 4: MEDICINE MARKETPLACE */}
+        {activeTab === 'marketplace' && (
           <div className="white-panel" style={{ padding: '24px' }}>
-            <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '16px' }}>Diagnostic Lab Reports</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {reports.map((rep) => (
-                <div key={rep.id} className="white-card" style={{ padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <FileText size={24} color="#059669" />
-                    <div>
-                      <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>{rep.title}</h4>
-                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Issued by <strong>{rep.lab}</strong> on {rep.date}</p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ShoppingBag size={22} color="#059669" />
+                  <span>Medicine E-Commerce Marketplace</span>
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  Browse authentic medicines listed by verified pharmacies, compare prices, and order online.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <div style={{ position: 'relative', width: '240px' }}>
+                  <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    style={{ paddingLeft: '36px', fontSize: '0.84rem' }}
+                    placeholder="Search medicine or brand..."
+                    value={marketplaceSearch}
+                    onChange={(e) => setMarketplaceSearch(e.target.value)}
+                  />
+                </div>
+
+                <button type="button" onClick={() => setShowCartModal(true)} className="btn-primary" style={{ background: '#059669', padding: '8px 16px' }}>
+                  <ShoppingCart size={16} />
+                  <span>Cart ({cart.reduce((s, i) => s + i.qty, 0)})</span>
+                </button>
+              </div>
+            </div>
+
+            {filteredMarketplaceItems.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                <ShoppingBag size={40} style={{ margin: '0 auto 12px auto', color: '#94a3b8' }} />
+                <p style={{ fontSize: '0.95rem' }}>No medicines currently listed in pharmacy marketplace.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+                {filteredMarketplaceItems.map((item) => (
+                  <div key={item._id} className="white-card" style={{ padding: '18px', borderLeft: '4px solid #059669' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                      <div>
+                        <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>
+                          {item.medicineId?.medicineName || 'Medicine'}
+                        </h4>
+                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Brand: {item.companyName}</span>
+                      </div>
+                      <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#059669' }}>₹{item.price}</span>
+                    </div>
+
+                    <p style={{ fontSize: '0.8rem', color: '#475569', marginBottom: '12px' }}>
+                      Pharmacy: <strong>{item.organizationId?.name || 'Local Pharmacy'}</strong>
+                    </p>
+
+                    <button 
+                      type="button" 
+                      onClick={() => handleAddToCart(item)} 
+                      className="btn-success" 
+                      style={{ width: '100%', padding: '8px', fontSize: '0.82rem', justifyContent: 'center' }}
+                    >
+                      <ShoppingCart size={14} />
+                      <span>Add to Shopping Cart</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 5: MY MEDICINE ORDERS & BILLS */}
+        {activeTab === 'my_orders' && (
+          <div className="white-panel" style={{ padding: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Receipt size={22} color="#059669" />
+                  <span>My Medicine Orders & Pharmacy Bills ({patientOrders.length})</span>
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  View your placed pharmacy orders, track fulfillment status, and download tax invoices.
+                </p>
+              </div>
+
+              <button type="button" onClick={fetchPatientOrders} className="btn-secondary" style={{ padding: '8px 14px' }}>
+                <RefreshCw size={15} />
+                <span>Refresh Orders</span>
+              </button>
+            </div>
+
+            {patientOrders.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                <Receipt size={40} style={{ margin: '0 auto 12px auto', color: '#94a3b8' }} />
+                <p style={{ fontSize: '0.95rem' }}>No medicine orders placed yet.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {patientOrders.map((order) => (
+                  <div key={order._id} className="white-card" style={{ padding: '18px', borderLeft: '5px solid #059669' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
+                      <div>
+                        <strong style={{ fontSize: '1.1rem', color: '#0f172a' }}>
+                          Order #{order._id.slice(-6).toUpperCase()}
+                        </strong>
+                        <p style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '2px' }}>
+                          Pharmacy: <strong>{order.organizationId?.name || 'Verified Local Pharmacy'}</strong> • Date: {new Date(order.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        </p>
+                      </div>
+
+                      <div style={{ textAlign: 'right' }}>
+                        <span className={`badge ${order.status === 'completed' ? 'badge-approved' : order.status === 'cancelled' ? 'badge-rejected' : 'badge-pending'}`} style={{ fontSize: '0.8rem' }}>
+                          {(order.status || 'pending').toUpperCase()}
+                        </span>
+                        <strong style={{ display: 'block', fontSize: '1.25rem', color: '#059669', marginTop: '4px' }}>₹{order.totalAmount || 0}</strong>
+                      </div>
+                    </div>
+
+                    {/* Order Items Table */}
+                    <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '14px', overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid #cbd5e1', textAlign: 'left', color: '#475569' }}>
+                            <th style={{ padding: '6px' }}>Item Name</th>
+                            <th style={{ padding: '6px' }}>Brand</th>
+                            <th style={{ padding: '6px' }}>Qty</th>
+                            <th style={{ padding: '6px', textAlign: 'right' }}>Price</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {order.items?.map((it, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: '6px', fontWeight: 700, color: '#0f172a' }}>{it.medicineName}</td>
+                              <td style={{ padding: '6px', color: '#64748b' }}>{it.companyName}</td>
+                              <td style={{ padding: '6px', fontWeight: 600 }}>{it.quantity}</td>
+                              <td style={{ padding: '6px', textAlign: 'right', fontWeight: 700, color: '#059669' }}>₹{it.price * it.quantity}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <button 
+                        type="button" 
+                        onClick={() => setSelectedInvoiceOrder(order)} 
+                        className="btn-primary" 
+                        style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                      >
+                        <Printer size={15} />
+                        <span>View & Print Official Pharmacy Bill</span>
+                      </button>
                     </div>
                   </div>
-                  <span className="badge badge-approved">{rep.status}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 6: NEARBY HEALTHCARE MAP */}
+        {activeTab === 'map' && (
+          <div className="white-panel" style={{ padding: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <MapPin size={22} color="#0284c7" />
+                  <span>Nearby Healthcare Facilities Map</span>
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  Visual OpenStreetMap box showing hospitals, clinics, labs, and pharmacies near your location.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem', fontWeight: 700 }}>
+                <span style={{ padding: '4px 8px', borderRadius: '6px', background: '#dbeafe', color: '#1d4ed8' }}>🔵 Hospital</span>
+                <span style={{ padding: '4px 8px', borderRadius: '6px', background: '#dcfce7', color: '#15803d' }}>🟢 Clinic</span>
+                <span style={{ padding: '4px 8px', borderRadius: '6px', background: '#f3e8ff', color: '#6b21a8' }}>🟣 Lab</span>
+                <span style={{ padding: '4px 8px', borderRadius: '6px', background: '#fef3c7', color: '#b45309' }}>🟠 Pharmacy</span>
+              </div>
+            </div>
+
+            <div 
+              ref={mapContainerRef} 
+              id="leaflet-nearby-map" 
+              style={{ width: '100%', height: '440px', minHeight: '440px', borderRadius: '16px', border: '2px solid var(--border-color)', overflow: 'hidden', position: 'relative', zIndex: 1, display: 'block' }}
+            />
+
+            {selectedFacility && (
+              <div style={{ marginTop: '16px', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#0284c7', textTransform: 'uppercase' }}>Selected Healthcare Facility</span>
+                  <h4 style={{ fontSize: '1.1rem', color: '#0f172a', margin: '2px 0' }}>{selectedFacility.name}</h4>
+                  <p style={{ fontSize: '0.82rem', color: '#475569' }}>📍 {selectedFacility.location?.buildingNo || ''} {selectedFacility.location?.city || 'City'} • 📞 {selectedFacility.contactNumber || 'N/A'}</p>
                 </div>
-              ))}
+
+                <button type="button" onClick={() => { setActiveTab('appointments'); }} className="btn-primary" style={{ padding: '8px 16px' }}>
+                  <Calendar size={15} />
+                  <span>Book Appointment Here</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 7: FAMILY PROFILES */}
+        {activeTab === 'managed_profiles' && (
+          <div className="white-panel" style={{ padding: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Users size={22} color="#0284c7" />
+                  <span>Manage Family Profiles</span>
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  Add family members, link existing patient accounts, or switch views between profiles.
+                </p>
+              </div>
+
+              <button type="button" onClick={() => setShowAddFamilyModal(true)} className="btn-primary" style={{ padding: '8px 16px' }}>
+                <UserPlus size={16} />
+                <span>Add Family Profile</span>
+              </button>
+            </div>
+
+            {(!userProfile?.managedProfiles || userProfile.managedProfiles.length === 0) ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                <Users size={40} style={{ margin: '0 auto 12px auto', color: '#94a3b8' }} />
+                <p style={{ fontSize: '0.95rem' }}>No family members linked yet.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+                {userProfile.managedProfiles.map((mp) => (
+                  <div key={mp._id || mp.id} className="white-card" style={{ padding: '18px', borderLeft: '4px solid #0284c7' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                      <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>{mp.name}</h4>
+                      <span style={{ padding: '3px 8px', borderRadius: '12px', background: '#fee2e2', color: '#dc2626', fontSize: '0.75rem', fontWeight: 800 }}>
+                        {mp.bloodGroup || 'A+'}
+                      </span>
+                    </div>
+
+                    <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '14px' }}>
+                      📍 Location: {mp.location?.city || 'New Delhi'}
+                    </p>
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          setSelectedManagedProfile(mp);
+                          setActiveTab('profile');
+                        }} 
+                        className="btn-primary" 
+                        style={{ padding: '6px 12px', fontSize: '0.8rem', flex: 1 }}
+                      >
+                        <Eye size={14} />
+                        <span>View Profile</span>
+                      </button>
+
+                      <button 
+                        type="button" 
+                        onClick={() => handleRemoveManagedProfile(mp._id || mp.id)} 
+                        className="btn-secondary" 
+                        style={{ padding: '6px 10px', fontSize: '0.8rem', color: '#dc2626' }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 8: APPOINTMENTS BOOKING & MANAGER */}
+        {activeTab === 'appointments' && (
+          <div className="white-panel" style={{ padding: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Calendar size={22} color="#0284c7" />
+                  <span>{activeMode === 'doctor' ? 'Doctor Consultation Slots Manager' : 'Book Consultation Appointments'}</span>
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  Search available slots, book visits, or manage published slots.
+                </p>
+              </div>
+
+              <div style={{ position: 'relative', width: '280px' }}>
+                <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  style={{ paddingLeft: '36px', fontSize: '0.84rem' }}
+                  placeholder="Search Doctor, Hospital, or Patient..."
+                  value={appointmentSearchQuery}
+                  onChange={(e) => setAppointmentSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* DOCTOR CREATE SLOT PUBLISHER */}
+            {activeMode === 'doctor' && (
+              <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '12px', padding: '18px', marginBottom: '24px' }}>
+                <h4 style={{ fontSize: '1rem', fontWeight: 800, color: '#047857', marginBottom: '12px' }}>Publish New Consultation Slot</h4>
+                <form onSubmit={handleCreateDoctorSlot} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                  <input type="text" className="form-input" placeholder="Slot Title" value={docSlotTitle} onChange={(e) => setDocSlotTitle(e.target.value)} required />
+                  <input type="date" className="form-input" value={docSlotDate} onChange={(e) => setDocSlotDate(e.target.value)} required />
+                  <input type="time" className="form-input" value={docStartTime} onChange={(e) => setDocStartTime(e.target.value)} required />
+                  <input type="time" className="form-input" value={docEndTime} onChange={(e) => setDocEndTime(e.target.value)} required />
+                  <input type="number" className="form-input" placeholder="Fee (₹)" value={docFee} onChange={(e) => setDocFee(e.target.value)} required />
+                  <button type="submit" className="btn-success" disabled={isSubmitting} style={{ padding: '8px 16px' }}>
+                    {isSubmitting ? 'Publishing...' : 'Publish Slot'}
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* AVAILABLE SLOTS TO BOOK (PATIENT SIDE) */}
+            {activeMode === 'patient' && (
+              <div style={{ marginBottom: '28px' }}>
+                <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', marginBottom: '12px' }}>
+                  Available Doctor & Hospital Slots
+                </h4>
+
+                {availableSlots.length === 0 ? (
+                  <p style={{ fontSize: '0.85rem', color: '#64748b' }}>No open consultation slots published currently.</p>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+                    {availableSlots.map((slot) => (
+                      <div key={slot._id} className="white-card" style={{ padding: '16px', borderLeft: '4px solid #059669' }}>
+                        <h5 style={{ fontSize: '0.98rem', fontWeight: 800, color: '#0f172a' }}>{slot.title || 'Consultation Slot'}</h5>
+                        <p style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '2px' }}>
+                          📅 {slot.slotDate} ({slot.startTime} - {slot.endTime})
+                        </p>
+                        <p style={{ fontSize: '0.85rem', fontWeight: 800, color: '#0284c7', marginTop: '4px' }}>
+                          Fee: ₹{slot.fee || 0}
+                        </p>
+
+                        <button 
+                          type="button" 
+                          onClick={() => handleBookSlot(slot._id)} 
+                          className="btn-primary" 
+                          disabled={isBookingSlot}
+                          style={{ width: '100%', marginTop: '12px', padding: '8px 12px', fontSize: '0.85rem' }}
+                        >
+                          {isBookingSlot ? 'Booking...' : 'Book This Appointment'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* BOOKED APPOINTMENTS HISTORY */}
+            <div>
+              <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', marginBottom: '12px' }}>
+                Booked Appointments ({filteredAppointments.length})
+              </h4>
+
+              {filteredAppointments.length === 0 ? (
+                <p style={{ fontSize: '0.85rem', color: '#64748b' }}>No appointment records found matching filter.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {filteredAppointments.map(app => (
+                    <div key={app._id} className="white-card" style={{ padding: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                      <div>
+                        <strong style={{ fontSize: '0.95rem', color: '#0f172a' }}>
+                          {app.doctorId?.name ? `Dr. ${app.doctorId.name}` : app.organizationId?.name || 'Healthcare Facility'}
+                        </strong>
+                        <p style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '2px' }}>
+                          Patient: {app.patientId?.name || 'User'} • Slot: {app.slotId?.slotDate || ''} ({app.slotId?.startTime || ''})
+                        </p>
+                      </div>
+
+                      <span className={`badge ${app.status === 'completed' ? 'badge-approved' : app.status === 'rejected' ? 'badge-rejected' : 'badge-pending'}`}>
+                        {(app.status || 'appointed').toUpperCase()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* DOCTOR PRACTITIONER & ORGANIZATION AFFILIATION SEARCH TAB */}
-        {activeTab === 'practitioner' && userProfile?.isDoctor && (
+        {/* TAB 9: HEALTH ANALYTICS */}
+        {activeTab === 'analytics' && (
           <div className="white-panel" style={{ padding: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
-              <div>
-                <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)' }}>Doctor Practitioner & Hospital Affiliation</h3>
-                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Search and send affiliation requests to hospitals/clinics.</p>
+            <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <BarChart3 size={22} color="#0284c7" />
+              <span>Health Records Analytics & Diagrams</span>
+            </h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+              <div className="white-card" style={{ padding: '18px', borderLeft: '5px solid #0284c7' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Booked Appointments</span>
+                <h4 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0284c7', margin: '4px 0 0 0' }}>{appointments.length}</h4>
               </div>
-              
-              <span className={
-                userProfile.doctorDetails?.affiliateOrganizationApprovalStatus === 'approved' 
-                  ? 'badge badge-approved' 
-                  : userProfile.doctorDetails?.affiliateOrganizationApprovalStatus === 'pending'
-                  ? 'badge badge-pending'
-                  : 'badge badge-danger'
-              }>
-                {userProfile.doctorDetails?.affiliateOrganizationApprovalStatus === 'approved' ? 'AFFILIATED & VERIFIED' : 'AFFILIATION PENDING'}
-              </span>
+              <div className="white-card" style={{ padding: '18px', borderLeft: '5px solid #059669' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Prescriptions Received</span>
+                <h4 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#059669', margin: '4px 0 0 0' }}>{prescriptions.length}</h4>
+              </div>
+              <div className="white-card" style={{ padding: '18px', borderLeft: '5px solid #7c3aed' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Pharmacy Orders</span>
+                <h4 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#7c3aed', margin: '4px 0 0 0' }}>{patientOrders.length}</h4>
+              </div>
             </div>
 
-            {/* Current Affiliation Status Card */}
-            <div style={{ background: '#f8fafc', padding: '18px', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '24px' }}>
-              <h4 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <Building2 size={18} color="#0284c7" />
-                <span>Current Hospital/Clinic Affiliation</span>
-              </h4>
-              
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                {userProfile.doctorDetails?.affiliateOrganizationApprovalStatus === 'approved' ? (
-                  <span style={{ color: '#047857', fontWeight: 700 }}>Fully affiliated and approved to issue medical prescriptions.</span>
-                ) : userProfile.doctorDetails?.affiliateOrganizationApprovalStatus === 'pending' ? (
-                  <span style={{ color: '#d97706', fontWeight: 700 }}>Affiliation request sent to organization. Waiting for hospital approval.</span>
-                ) : (
-                  <span style={{ color: '#dc2626', fontWeight: 700 }}>Not currently affiliated with any registered organization. Search below to send a request.</span>
-                )}
-              </p>
-            </div>
-
-            {/* Search Organizations Section */}
-            <div>
-              <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '12px' }}>
-                Search Registered Hospitals & Clinics
-              </h4>
-
-              <div className="form-group" style={{ marginBottom: '16px' }}>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Search hospital or clinic by name or city (e.g. Apex Health, City Hospital)..."
-                  value={orgSearchQuery}
-                  onChange={(e) => handleSearchOrganizations(e.target.value)}
-                />
-              </div>
-
-              {isSearchingOrgs ? (
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Searching registered organizations...</p>
-              ) : orgSearchResults.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {orgSearchResults.map((org) => (
-                    <div key={org._id} className="white-card" style={{ padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-                      <div>
-                        <h5 style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-main)' }}>{org.name}</h5>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                          Type: <strong>{org.facilityType || 'Hospital'}</strong> • City: <strong>{org.location?.city || 'New Delhi'}</strong>
-                        </p>
+            <div className="white-card" style={{ padding: '20px' }}>
+              <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', marginBottom: '14px' }}>Appointment Status Distribution Diagram</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {['requested', 'appointed', 'completed', 'rejected'].map(st => {
+                  const count = appointments.filter(a => (a.status || 'appointed') === st).length;
+                  const pct = appointments.length > 0 ? Math.round((count / appointments.length) * 100) : 0;
+                  return (
+                    <div key={st}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                        <span style={{ textTransform: 'uppercase' }}>{st}</span>
+                        <span>{count} ({pct}%)</span>
                       </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleSendAffiliationRequest(org._id, org.name)}
-                        className="btn-primary"
-                        style={{ padding: '6px 14px', fontSize: '0.8rem' }}
-                      >
-                        <Send size={14} />
-                        <span>Send Affiliation Request</span>
-                      </button>
+                      <div style={{ width: '100%', height: '10px', background: '#f1f5f9', borderRadius: '5px', overflow: 'hidden' }}>
+                        <div style={{ width: `${pct}%`, height: '100%', background: st === 'completed' ? '#059669' : st === 'rejected' ? '#dc2626' : '#0284c7', transition: 'width 0.4s ease' }} />
+                      </div>
                     </div>
-                  ))}
-                </div>
-              ) : orgSearchQuery.trim() ? (
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No registered organizations matching "{orgSearchQuery}".</p>
-              ) : null}
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* DOCTOR MULTI-OPTION PATIENT QR SCANNER MODAL */}
-      {showScanModal && (
-        <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '560px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <QrCode size={20} color="#059669" />
-                <span>Patient QR Code Scanner</span>
-              </h3>
-              <button type="button" onClick={() => { stopCamera(); setShowScanModal(false); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={18} /></button>
+      {/* PRINTABLE OFFICIAL PHARMACY INVOICE / BILL MODAL */}
+      {selectedInvoiceOrder && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
+          <div className="white-panel" style={{ maxWidth: '640px', width: '100%', padding: '28px', borderRadius: '20px', background: '#ffffff' }}>
+            <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>Pharmacy Tax Invoice & Receipt</h4>
+              <button type="button" onClick={() => setSelectedInvoiceOrder(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><X size={20} /></button>
             </div>
 
-            <div>
-              {/* WebCam / Live Viewfinder */}
-              <div style={{ marginBottom: '16px', background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                {!cameraActive ? (
+            {/* RECEIPT PAPER CONTAINER */}
+            <div style={{ border: '2px dashed #0284c7', borderRadius: '16px', padding: '24px', background: '#fafafa' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #0284c7', paddingBottom: '14px', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <img src={logoImg} alt="Logo" style={{ height: '36px' }} />
                   <div>
-                    <Camera size={36} color="#059669" style={{ margin: '0 auto 8px auto' }} />
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '12px' }}>Scan patient's QR code via live camera or upload a QR image file.</p>
-                    
-                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                      <button type="button" onClick={startCamera} className="btn-success" style={{ padding: '8px 16px' }}>
-                        <Camera size={16} />
-                        <span>Open Device Camera</span>
-                      </button>
+                    <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#0284c7' }}>Arogya<span style={{ color: '#ea580c' }}>X</span> Pharmacy</h2>
+                    <p style={{ fontSize: '0.75rem', color: '#64748b' }}>Official E-Commerce Bill & Receipt</p>
+                  </div>
+                </div>
 
-                      <button type="button" onClick={() => fileInputRef.current?.click()} className="btn-secondary" style={{ padding: '8px 16px' }}>
-                        <Upload size={16} />
-                        <span>Upload QR Image</span>
-                      </button>
-                      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleQRFileUpload} style={{ display: 'none' }} />
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <div style={{ position: 'relative', width: '100%', maxHeight: '240px', overflow: 'hidden', borderRadius: '10px', background: '#000000', marginBottom: '10px' }}>
-                      <video ref={videoRef} autoPlay playsInline style={{ width: '100%', height: '240px', objectFit: 'cover' }} />
-                      <div style={{ position: 'absolute', inset: 0, border: '3px dashed #10b981', margin: '30px auto', width: '180px', height: '180px', borderRadius: '12px', pointerEvents: 'none' }} />
-                    </div>
-                    <p style={{ fontSize: '0.8rem', color: '#059669', marginBottom: '10px' }}>{scanStatus || 'Point camera at QR code for auto scan.'}</p>
-                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                      <button type="button" onClick={stopCamera} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.78rem' }}>
-                        <CameraOff size={14} />
-                        <span>Close Camera</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
+                <div style={{ textAlign: 'right' }}>
+                  <span className="badge badge-approved" style={{ fontSize: '0.72rem' }}>TAX INVOICE</span>
+                  <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+                    Order ID: <strong>#{selectedInvoiceOrder._id.slice(-8).toUpperCase()}</strong>
+                  </p>
+                </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Or Paste / Input Patient QR Payload or ID</label>
-                <textarea
-                  className="form-input"
-                  rows={2}
-                  placeholder='Paste patient QR JSON string or Patient ID...'
-                  value={scannedPayload}
-                  onChange={(e) => setScannedPayload(e.target.value)}
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.8rem', color: '#334155', marginBottom: '16px' }}>
+                <div>
+                  <strong>Dispensing Pharmacy:</strong>
+                  <p style={{ color: '#0f172a', fontWeight: 700 }}>{selectedInvoiceOrder.organizationId?.name || 'ArogyaX Certified Partner'}</p>
+                  <p>📍 {selectedInvoiceOrder.organizationId?.location?.city || 'New Delhi'}</p>
+                </div>
+                <div>
+                  <strong>Patient Details:</strong>
+                  <p style={{ color: '#0f172a', fontWeight: 700 }}>{selectedInvoiceOrder.patientId?.name || activeProfile?.name || 'Verified Patient'}</p>
+                  <p>Date: {new Date(selectedInvoiceOrder.createdAt).toLocaleDateString()}</p>
+                </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => handleProcessQRScan(scannedPayload)}
-                className="btn-success"
-                style={{ width: '100%', padding: '10px', fontSize: '0.9rem' }}
-              >
-                Verify Patient & Open Prescription Creator Page
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', marginBottom: '16px' }}>
+                <thead>
+                  <tr style={{ background: '#0284c7', color: '#ffffff' }}>
+                    <th style={{ padding: '8px', textAlign: 'left' }}>Item</th>
+                    <th style={{ padding: '8px', textAlign: 'left' }}>Brand</th>
+                    <th style={{ padding: '8px', textAlign: 'center' }}>Qty</th>
+                    <th style={{ padding: '8px', textAlign: 'right' }}>Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedInvoiceOrder.items?.map((it, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '8px', fontWeight: 700 }}>{it.medicineName}</td>
+                      <td style={{ padding: '8px', color: '#64748b' }}>{it.companyName}</td>
+                      <td style={{ padding: '8px', textAlign: 'center' }}>{it.quantity}</td>
+                      <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700 }}>₹{it.price * it.quantity}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '2px solid #0284c7', paddingTop: '12px' }}>
+                <span style={{ fontSize: '0.82rem', color: '#059669', fontWeight: 700 }}>Status: {(selectedInvoiceOrder.status || 'CONFIRMED').toUpperCase()}</span>
+                <strong style={{ fontSize: '1.3rem', color: '#0f172a' }}>Total Paid: ₹{selectedInvoiceOrder.totalAmount}</strong>
+              </div>
+            </div>
+
+            <div className="no-print" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '16px' }}>
+              <button type="button" onClick={() => window.print()} className="btn-primary" style={{ padding: '10px 20px' }}>
+                <Printer size={16} />
+                <span>Print Official Invoice</span>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* EDIT PROFILE MODAL */}
+      {/* EDIT USER / DOCTOR PROFILE MODAL */}
       {showEditModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Edit Profile Details</h3>
-              <button type="button" onClick={() => setShowEditModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={20} /></button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
+          <div className="white-panel" style={{ maxWidth: '600px', width: '100%', padding: '24px', borderRadius: '20px', background: '#ffffff', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Edit3 size={22} color="#0284c7" />
+                <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a' }}>
+                  Edit {activeProfile?.isDoctor ? 'Doctor Practitioner Profile' : 'Personal Health Profile'}
+                </h4>
+              </div>
+              <button type="button" onClick={() => setShowEditModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><X size={20} /></button>
             </div>
 
-            <form onSubmit={handleUpdateProfile}>
-              <div className="grid-2col">
-                <div className="form-group col-span-2">
+            <form onSubmit={handleUpdateProfile} style={{ display: 'grid', gap: '14px' }}>
+              <div className="grid-2col" style={{ gap: '12px' }}>
+                <div className="form-group">
                   <label className="form-label">Full Name</label>
                   <input type="text" className="form-input" value={editName} onChange={(e) => setEditName(e.target.value)} required />
                 </div>
+                {!activeProfile?.isDoctor && (
+                  <div className="form-group">
+                    <label className="form-label">Blood Group</label>
+                    <select className="form-input" value={editBloodGroup} onChange={(e) => setEditBloodGroup(e.target.value)}>
+                      {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => <option key={bg} value={bg}>{bg}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {activeProfile?.isDoctor && (
+                <div className="grid-2col" style={{ gap: '12px', background: '#f0fdf4', padding: '12px', borderRadius: '12px', border: '1px solid #bbf7d0' }}>
+                  <div className="form-group">
+                    <label className="form-label" style={{ color: '#166534' }}>Speciality</label>
+                    <input type="text" className="form-input" value={editSpeciality} onChange={(e) => setEditSpeciality(e.target.value)} placeholder="e.g. Cardiology" required />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ color: '#166534' }}>Medical Certificate No</label>
+                    <input type="text" className="form-input" value={editCertNo} onChange={(e) => setEditCertNo(e.target.value)} placeholder="e.g. MCI-998811" required />
+                  </div>
+                </div>
+              )}
+
+              <h5 style={{ fontSize: '0.94rem', fontWeight: 800, color: '#0f172a', margin: '4px 0 0 0' }}>Residential Address & Location</h5>
+
+              <div className="grid-2col" style={{ gap: '12px' }}>
+                <div className="form-group">
+                  <label className="form-label">House / Flat No</label>
+                  <input type="text" className="form-input" value={editHouseNo} onChange={(e) => setEditHouseNo(e.target.value)} placeholder="e.g. 42-B" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Room No</label>
+                  <input type="text" className="form-input" value={editRoomNo} onChange={(e) => setEditRoomNo(e.target.value)} placeholder="e.g. A-12" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Floor No</label>
+                  <input type="number" className="form-input" value={editFloorNo} onChange={(e) => setEditFloorNo(e.target.value)} min="0" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Landmark</label>
+                  <input type="text" className="form-input" value={editLandmark} onChange={(e) => setEditLandmark(e.target.value)} placeholder="e.g. Near SG Highway" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">City</label>
+                  <input type="text" className="form-input" value={editCity} onChange={(e) => setEditCity(e.target.value)} placeholder="Ahmedabad" required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">State</label>
+                  <input type="text" className="form-input" value={editState} onChange={(e) => setEditState(e.target.value)} placeholder="Gujarat" required />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Pincode</label>
+                  <input type="text" className="form-input" value={editPincode} onChange={(e) => setEditPincode(e.target.value)} placeholder="380001" required />
+                </div>
+              </div>
+
+              <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label className="form-label" style={{ margin: 0 }}>GPS Coordinates (Lng, Lat)</label>
+                  <button type="button" onClick={handleGetCurrentLocation} disabled={isLocating} className="btn-secondary" style={{ padding: '4px 10px', fontSize: '0.78rem' }}>
+                    <Navigation size={12} />
+                    <span>{isLocating ? 'Locating...' : 'Use Current GPS'}</span>
+                  </button>
+                </div>
+                <div className="grid-2col" style={{ gap: '10px' }}>
+                  <input type="text" className="form-input" value={editLng} onChange={(e) => setEditLng(e.target.value)} placeholder="Longitude (e.g. 72.5714)" />
+                  <input type="text" className="form-input" value={editLat} onChange={(e) => setEditLat(e.target.value)} placeholder="Latitude (e.g. 23.0225)" />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                <button type="button" onClick={() => setShowEditModal(false)} className="btn-secondary" style={{ padding: '10px 18px' }}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" disabled={isSubmitting} style={{ padding: '10px 22px' }}>
+                  <span>{isSubmitting ? 'Saving Changes...' : 'Save Profile Changes'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ADD / LINK FAMILY MEMBER PROFILE MODAL */}
+      {showAddFamilyModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
+          <div className="white-panel" style={{ maxWidth: '540px', width: '100%', padding: '24px', borderRadius: '20px', background: '#ffffff' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Users size={22} color="#0284c7" />
+                <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a' }}>Add Family Member Profile</h4>
+              </div>
+              <button type="button" onClick={() => setShowAddFamilyModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><X size={20} /></button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', background: '#f1f5f9', padding: '4px', borderRadius: '10px' }}>
+              <button type="button" onClick={() => setFamilyAddMode('create')} style={{ flex: 1, padding: '8px', borderRadius: '8px', border: 'none', fontWeight: 800, fontSize: '0.82rem', background: familyAddMode === 'create' ? '#ffffff' : 'transparent', color: familyAddMode === 'create' ? '#0284c7' : '#64748b', cursor: 'pointer' }}>
+                Create New Sub-Profile
+              </button>
+              <button type="button" onClick={() => setFamilyAddMode('search')} style={{ flex: 1, padding: '8px', borderRadius: '8px', border: 'none', fontWeight: 800, fontSize: '0.82rem', background: familyAddMode === 'search' ? '#ffffff' : 'transparent', color: familyAddMode === 'search' ? '#0284c7' : '#64748b', cursor: 'pointer' }}>
+                Link Registered Patient Account
+              </button>
+            </div>
+
+            {familyAddMode === 'search' ? (
+              <form onSubmit={handleAddFamilyMember} style={{ display: 'grid', gap: '14px' }}>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <input type="email" className="form-input" placeholder="Search patient by email address..." value={familySearchEmail} onChange={(e) => setFamilySearchEmail(e.target.value)} required />
+                  <button type="button" onClick={handleSearchFamilyUser} className="btn-secondary" style={{ padding: '8px 14px' }}>Search</button>
+                </div>
+
+                {familySearchResult && (
+                  <div style={{ background: '#f0f9ff', padding: '12px', borderRadius: '10px', border: '1px solid #bae6fd' }}>
+                    <h5 style={{ fontSize: '0.98rem', fontWeight: 800, color: '#0f172a' }}>{familySearchResult.name}</h5>
+                    <p style={{ fontSize: '0.82rem', color: '#64748b' }}>Blood Group: {familySearchResult.bloodGroup || 'A+'} • Location: {familySearchResult.location?.city || 'City'}</p>
+                  </div>
+                )}
 
                 <div className="form-group">
-                  <label className="form-label">Blood Group</label>
-                  <select className="form-input" value={editBloodGroup} onChange={(e) => setEditBloodGroup(e.target.value)}>
-                    {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => (
-                      <option key={bg} value={bg}>{bg}</option>
-                    ))}
+                  <label className="form-label">Relationship Type</label>
+                  <select className="form-input" value={familyNewRelation} onChange={(e) => setFamilyNewRelation(e.target.value)}>
+                    {['Spouse', 'Child', 'Parent', 'Sibling', 'Family Member'].map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
                 </div>
 
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                  <button type="button" onClick={() => setShowAddFamilyModal(false)} className="btn-secondary" style={{ padding: '10px 18px' }}>Cancel</button>
+                  <button type="submit" className="btn-primary" disabled={isSubmitting} style={{ padding: '10px 22px' }}>
+                    <span>{isSubmitting ? 'Connecting...' : 'Connect Family Profile'}</span>
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleAddFamilyMember} style={{ display: 'grid', gap: '14px' }}>
                 <div className="form-group">
-                  <label className="form-label">City</label>
-                  <input type="text" className="form-input" value={editCity} onChange={(e) => setEditCity(e.target.value)} required />
+                  <label className="form-label">Full Name</label>
+                  <input type="text" className="form-input" placeholder="e.g. Ramesh Patel" value={familyNewName} onChange={(e) => setFamilyNewName(e.target.value)} required />
                 </div>
 
-                <div className="form-group col-span-2">
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <label className="form-label" style={{ margin: 0 }}>GPS Coordinates (Longitude & Latitude)</label>
-                    <button
-                      type="button"
-                      onClick={handleGetCurrentLocation}
-                      className="btn-secondary"
-                      style={{ padding: '3px 8px', fontSize: '0.72rem', color: '#0284c7' }}
-                      disabled={isLocating}
-                    >
-                      <Navigation size={12} className={isLocating ? 'spin' : ''} />
-                      <span>{isLocating ? 'Locating...' : 'Get GPS Location'}</span>
-                    </button>
+                <div className="grid-2col" style={{ gap: '12px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Blood Group</label>
+                    <select className="form-input" value={familyNewBloodGroup} onChange={(e) => setFamilyNewBloodGroup(e.target.value)}>
+                      {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => <option key={bg} value={bg}>{bg}</option>)}
+                    </select>
                   </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <input type="text" className="form-input" style={{ flex: 1 }} placeholder="Longitude" value={editLng} onChange={(e) => setEditLng(e.target.value)} required />
-                    <input type="text" className="form-input" style={{ flex: 1 }} placeholder="Latitude" value={editLat} onChange={(e) => setEditLat(e.target.value)} required />
+                  <div className="form-group">
+                    <label className="form-label">Relationship</label>
+                    <select className="form-input" value={familyNewRelation} onChange={(e) => setFamilyNewRelation(e.target.value)}>
+                      {['Child', 'Spouse', 'Parent', 'Sibling', 'Family Member'].map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
                   </div>
                 </div>
-              </div>
 
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '16px' }}>
-                <button type="button" onClick={() => setShowEditModal(false)} className="btn-secondary">Cancel</button>
-                <button type="submit" className="btn-primary" disabled={isSubmitting}>Save Profile Changes</button>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                  <button type="button" onClick={() => setShowAddFamilyModal(false)} className="btn-secondary" style={{ padding: '10px 18px' }}>Cancel</button>
+                  <button type="submit" className="btn-primary" disabled={isSubmitting} style={{ padding: '10px 22px' }}>
+                    <span>{isSubmitting ? 'Creating...' : 'Create Sub-Profile'}</span>
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* DOCTOR QR SCANNER MODAL */}
+      {showScanModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
+          <div className="white-panel" style={{ maxWidth: '560px', width: '100%', padding: '24px', borderRadius: '20px', background: '#ffffff' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <QrCode size={22} color="#059669" />
+                <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a' }}>Scan Patient Health Identity QR</h4>
               </div>
-            </form>
+              <button type="button" onClick={() => { stopCamera(); setShowScanModal(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><X size={20} /></button>
+            </div>
+
+            {scanStatus && <p style={{ fontSize: '0.85rem', color: '#059669', fontWeight: 700, marginBottom: '12px', textAlign: 'center' }}>{scanStatus}</p>}
+
+            <div style={{ background: '#0f172a', borderRadius: '16px', height: '260px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', marginBottom: '16px' }}>
+              <video ref={videoRef} style={{ width: '100%', height: '100%', objectFit: 'cover', display: cameraActive ? 'block' : 'none' }} />
+              {!cameraActive && (
+                <div style={{ textAlign: 'center', color: '#94a3b8' }}>
+                  <CameraOff size={40} style={{ margin: '0 auto 8px auto' }} />
+                  <p style={{ fontSize: '0.85rem' }}>Camera inactive. Click button below to start live scanner.</p>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '16px' }}>
+              {!cameraActive ? (
+                <button type="button" onClick={startCamera} className="btn-success" style={{ padding: '8px 16px', fontSize: '0.84rem' }}>
+                  <Camera size={15} /><span>Start Camera Scanner</span>
+                </button>
+              ) : (
+                <button type="button" onClick={stopCamera} className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.84rem', color: '#dc2626' }}>
+                  <CameraOff size={15} /><span>Stop Camera</span>
+                </button>
+              )}
+
+              <input type="file" ref={fileInputRef} accept="image/*" style={{ display: 'none' }} onChange={handleQRFileUpload} />
+              <button type="button" onClick={() => fileInputRef.current?.click()} className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.84rem' }}>
+                <Upload size={15} /><span>Upload QR Image File</span>
+              </button>
+            </div>
+
+            <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
+              <label className="form-label" style={{ fontSize: '0.78rem' }}>Or Paste QR Payload String Manually:</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input type="text" className="form-input" placeholder="e.g. AX|66a01...|token" value={scannedPayload} onChange={(e) => setScannedPayload(e.target.value)} style={{ fontSize: '0.82rem' }} />
+                <button type="button" onClick={() => handleProcessQRScan(scannedPayload)} className="btn-primary" style={{ padding: '8px 14px', fontSize: '0.82rem' }}>Proceed</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SHOPPING CART MODAL */}
+      {showCartModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
+          <div className="white-panel" style={{ maxWidth: '580px', width: '100%', padding: '24px', borderRadius: '20px', background: '#ffffff' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <ShoppingCart size={22} color="#059669" />
+                <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0f172a' }}>My Medicine Shopping Cart ({cart.reduce((sum, item) => sum + item.qty, 0)} items)</h4>
+              </div>
+              <button type="button" onClick={() => setShowCartModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><X size={20} /></button>
+            </div>
+
+            {cart.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '36px 12px', color: '#64748b' }}>
+                <ShoppingCart size={44} style={{ margin: '0 auto 12px auto', color: '#cbd5e1' }} />
+                <p style={{ fontSize: '0.95rem', fontWeight: 600 }}>Your cart is currently empty.</p>
+                <button type="button" onClick={() => setShowCartModal(false)} className="btn-secondary" style={{ marginTop: '16px', padding: '8px 16px' }}>
+                  Browse Medicine Marketplace
+                </button>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '360px', overflowY: 'auto', paddingRight: '4px', marginBottom: '18px' }}>
+                  {cart.map((item) => (
+                    <div key={item._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                      <div>
+                        <h5 style={{ fontSize: '0.98rem', fontWeight: 800, color: '#0f172a' }}>{item.medicineId?.medicineName || 'Medicine'}</h5>
+                        <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>
+                          Pharmacy: {item.organizationId?.name || 'Local Pharmacy'} • ₹{item.price} each
+                        </p>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '2px 6px' }}>
+                          <button 
+                            type="button" 
+                            onClick={() => {
+                              setCart(prev => prev.map(i => i._id === item._id ? { ...i, qty: Math.max(1, i.qty - 1) } : i));
+                            }} 
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: '1rem', color: '#334155' }}
+                          >-</button>
+                          <span style={{ fontWeight: 800, fontSize: '0.9rem', padding: '0 4px' }}>{item.qty}</span>
+                          <button 
+                            type="button" 
+                            onClick={() => {
+                              setCart(prev => prev.map(i => i._id === item._id ? { ...i, qty: i.qty + 1 } : i));
+                            }} 
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: '1rem', color: '#334155' }}
+                          >+</button>
+                        </div>
+
+                        <strong style={{ fontSize: '1rem', color: '#059669', minWidth: '60px', textAlign: 'right' }}>₹{item.price * item.qty}</strong>
+
+                        <button 
+                          type="button" 
+                          onClick={() => setCart(prev => prev.filter(i => i._id !== item._id))} 
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', padding: '4px' }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ borderTop: '2px solid #059669', paddingTop: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+                  <div>
+                    <span style={{ fontSize: '0.78rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 800 }}>Total Cart Amount</span>
+                    <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#059669', margin: '2px 0 0 0' }}>₹{cartTotal}</h3>
+                  </div>
+
+                  <button type="button" onClick={() => setCart([])} style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}>
+                    Clear Entire Cart
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                  <button type="button" onClick={() => setShowCartModal(false)} className="btn-secondary" style={{ padding: '10px 18px' }}>
+                    Continue Shopping
+                  </button>
+
+                  <button 
+                    type="button" 
+                    onClick={handleCheckoutCart} 
+                    className="btn-success" 
+                    disabled={isSubmitting}
+                    style={{ padding: '10px 22px', fontSize: '0.92rem' }}
+                  >
+                    <span>{isSubmitting ? 'Processing Order...' : 'Place Order & Pay'}</span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
     </div>
   );
 };
-

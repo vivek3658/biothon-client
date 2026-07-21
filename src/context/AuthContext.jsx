@@ -50,16 +50,17 @@ export const AuthProvider = ({ children }) => {
       return result;
     }
 
-    // 2. Fallback to direct backend loopback URL
-    const directUrl = url.startsWith('http') ? url : `http://127.0.0.1:3000${url}`;
-    result = await tryCall(directUrl);
+    // 2. Fallback to production Vercel host URL
+    const vercelHost = process.env.VITE_API_URL || 'https://arogyax-server.vercel.app';
+    const remoteUrl = url.startsWith('http') ? url : `${vercelHost}${url}`;
+    result = await tryCall(remoteUrl);
     if (result.ok || (result.status !== 502 && result.status !== 0)) {
       return result;
     }
 
-    // 3. Fallback to localhost target
-    const localhostUrl = url.startsWith('http') ? url : `http://localhost:3000${url}`;
-    return await tryCall(localhostUrl);
+    // 3. Fallback to direct local backend URL
+    const directUrl = url.startsWith('http') ? url : `http://127.0.0.1:3000${url}`;
+    return await tryCall(directUrl);
   };
 
   const fetchCurrentUser = async () => {
@@ -75,51 +76,82 @@ export const AuthProvider = ({ children }) => {
 
       const headers = getAuthHeaders(false);
 
-      // 1. Check Org Auth FIRST (Hospital / Clinic / Laboratory)
-      let res = await safeFetchJson('/org/me', { headers, credentials: 'include' });
-      if (res.ok && res.data?.account && res.data.account.profile) {
+      let payload = null;
+      try {
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          const base64Url = parts[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          payload = JSON.parse(window.atob(base64));
+        }
+      } catch (e) {}
+
+      // 1. Check Employee Auth if token belongs to employee
+      if (payload?.role === 'admin' || payload?.role === 'manager') {
+        const resEmp = await safeFetchJson('/employee-auth/me', { headers, credentials: 'include' });
+        if (resEmp.ok && resEmp.data?.identity?.role) {
+          setUser(resEmp.data.identity);
+          setUserProfile(null);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 2. Check Organization Auth if token entityModel is Organization
+      if (payload?.entityModel === 'Organization' || ['hospital', 'clinic', 'laboratory', 'pharmacy'].includes(payload?.role)) {
+        const resOrg = await safeFetchJson('/org/me', { headers, credentials: 'include' });
+        if (resOrg.ok && resOrg.data?.account && resOrg.data.account.profile && resOrg.data.account.entityModel === 'Organization') {
+          setUser({
+            id: resOrg.data.account.accountId || resOrg.data.account._id,
+            username: resOrg.data.account.profile?.name || resOrg.data.account.email,
+            role: resOrg.data.account.role || 'hospital',
+            entityModel: 'Organization'
+          });
+          setUserProfile(resOrg.data.account.profile);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 3. Check User Auth (Patient / Doctor)
+      const resUser = await safeFetchJson('/user/me', { headers, credentials: 'include' });
+      if (resUser.ok && resUser.data?.account && resUser.data.account.entityModel === 'User') {
         setUser({
-          id: res.data.account.accountId || res.data.account._id,
-          username: res.data.account.profile?.name || res.data.account.email,
-          role: res.data.account.role || 'hospital',
+          id: resUser.data.account._id,
+          username: resUser.data.userProfile?.name || resUser.data.account.email,
+          role: resUser.data.account.role,
+          entityModel: 'User'
+        });
+        setUserProfile(resUser.data.userProfile);
+        setLoading(false);
+        return;
+      }
+
+      // Fallback 1: Check Organization Auth if not tried yet
+      const resOrgFallback = await safeFetchJson('/org/me', { headers, credentials: 'include' });
+      if (resOrgFallback.ok && resOrgFallback.data?.account && resOrgFallback.data.account.profile && resOrgFallback.data.account.entityModel === 'Organization') {
+        setUser({
+          id: resOrgFallback.data.account.accountId || resOrgFallback.data.account._id,
+          username: resOrgFallback.data.account.profile?.name || resOrgFallback.data.account.email,
+          role: resOrgFallback.data.account.role || 'hospital',
           entityModel: 'Organization'
         });
-        setUserProfile(res.data.account.profile);
+        setUserProfile(resOrgFallback.data.account.profile);
         setLoading(false);
         return;
       }
 
-      // 2. Check User Auth (Patient / Doctor)
-      res = await safeFetchJson('/user/me', { headers, credentials: 'include' });
-      if (res.ok && res.data?.account) {
-        // If account has an organization role, override to Organization dashboard!
-        const role = res.data.account.role;
-        const isOrg = res.data.account.entityModel === 'Organization' || ['hospital', 'clinic', 'laboratory', 'pharmacy', 'other'].includes(role);
-        
-        setUser({
-          id: res.data.account._id,
-          username: res.data.userProfile?.name || res.data.account.email,
-          role: role,
-          entityModel: isOrg ? 'Organization' : 'User'
-        });
-        setUserProfile(res.data.userProfile);
-        setLoading(false);
-        return;
-      }
-
-      // 3. Check Employee Auth (Admin / Manager)
-      res = await safeFetchJson('/employee-auth/me', { headers, credentials: 'include' });
-      if (res.ok && res.data?.identity?.role) {
-        setUser(res.data.identity);
+      // Fallback 2: Check Employee Auth
+      const resEmpFallback = await safeFetchJson('/employee-auth/me', { headers, credentials: 'include' });
+      if (resEmpFallback.ok && resEmpFallback.data?.identity?.role) {
+        setUser(resEmpFallback.data.identity);
         setUserProfile(null);
         setLoading(false);
         return;
       }
 
       // Clean up invalid session
-      if (res.status === 401 || res.status === 403) {
-        localStorage.removeItem('token');
-      }
+      localStorage.removeItem('token');
       setUser(null);
       setUserProfile(null);
     } catch (err) {
@@ -209,6 +241,29 @@ export const AuthProvider = ({ children }) => {
     return fetchCurrentUser();
   };
 
+  const loginGoogle = async (googlePayload) => {
+    setError(null);
+    const res = await safeFetchJson('/auth/google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(googlePayload)
+    });
+    if (!res.ok) {
+      if (res.status === 502 || res.status === 0) {
+        throw new Error('Backend server is offline or not responding. Please make sure backend node server is running on port 3000.');
+      }
+      throw new Error(res.error || 'Google authentication failed.');
+    }
+    if (res.data.token) {
+      localStorage.setItem('token', res.data.token);
+    }
+    if (!res.data.needsProfile) {
+      await fetchCurrentUser();
+    }
+    return res.data;
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -218,6 +273,7 @@ export const AuthProvider = ({ children }) => {
       loginEmployee,
       loginUser,
       loginOrg,
+      loginGoogle,
       logout,
       refreshUser
     }}>

@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+const TARGET_URL = process.env.VITE_API_URL || 'https://arogyax-server.vercel.app';
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
@@ -8,47 +10,57 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/employee-auth': {
-        target: 'http://127.0.0.1:3000',
+        target: TARGET_URL,
         changeOrigin: true,
         secure: false
       },
       '/admin': {
-        target: 'http://127.0.0.1:3000',
+        target: TARGET_URL,
         changeOrigin: true,
         secure: false
       },
       '/manager': {
-        target: 'http://127.0.0.1:3000',
+        target: TARGET_URL,
         changeOrigin: true,
         secure: false
       },
       '/org': {
-        target: 'http://127.0.0.1:3000',
+        target: TARGET_URL,
         changeOrigin: true,
         secure: false
       },
       '/auth': {
-        target: 'http://127.0.0.1:3000',
+        target: TARGET_URL,
         changeOrigin: true,
         secure: false
       },
       '/user': {
-        target: 'http://127.0.0.1:3000',
+        target: TARGET_URL,
         changeOrigin: true,
         secure: false
       },
       '/medicines': {
-        target: 'http://127.0.0.1:3000',
+        target: TARGET_URL,
         changeOrigin: true,
         secure: false
       },
       '/prescriptions': {
-        target: 'http://127.0.0.1:3000',
+        target: TARGET_URL,
+        changeOrigin: true,
+        secure: false
+      },
+      '/appointments': {
+        target: TARGET_URL,
+        changeOrigin: true,
+        secure: false
+      },
+      '/pharmacy': {
+        target: TARGET_URL,
         changeOrigin: true,
         secure: false
       },
       '/health': {
-        target: 'http://127.0.0.1:3000',
+        target: TARGET_URL,
         changeOrigin: true,
         secure: false
       }

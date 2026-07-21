@@ -24,7 +24,6 @@ export const Sidebar = ({ role, activeTab, setActiveTab, collapsed, setCollapsed
 
   const managerMenuItems = [
     { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'medicines', label: 'Medicine Catalog', icon: Pill },
     { id: 'pending', label: 'Pending Approvals', icon: Clock, badge: 'Action Needed' },
     { id: 'organizations', label: 'Verified Orgs', icon: CheckCircle2 },
     { id: 'reports', label: 'Verification Logs', icon: FileText }
