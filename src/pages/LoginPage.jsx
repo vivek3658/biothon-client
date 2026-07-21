@@ -222,7 +222,7 @@ const LoginPageContent = () => {
         </div>
       ) : (
         /* RENDER 2: MULTI-STEP REGISTRATION & UNIFIED LOGIN PORTAL */
-        <div className="w-full relative z-10">
+        <div className="w-full max-w-lg mx-auto relative z-10 flex flex-col items-center justify-center">
           
           {/* A. Role Selection View */}
           {viewMode === 'role_select' && (
@@ -246,14 +246,14 @@ const LoginPageContent = () => {
 
           {/* C. Unified Login View */}
           {viewMode === 'login' && (
-            <div className="w-full max-w-lg mx-auto p-9 md:p-11 bg-white/95 backdrop-blur-xl rounded-3xl border border-slate-200/90 shadow-2xl shadow-slate-200/60">
+            <div className="w-full max-w-md mx-auto p-8 md:p-10 bg-white/95 backdrop-blur-2xl rounded-3xl border border-slate-200/90 shadow-2xl shadow-slate-300/50 space-y-6">
               {/* Logo & Header */}
-              <div className="text-center mb-8">
+              <div className="text-center mb-6">
                 <img src={logoImg} alt="ArogyaX Logo" className="h-14 object-contain mx-auto mb-3" />
                 <h1 className="text-3xl font-black text-slate-900 tracking-tight">
                   Arogya<span className="text-orange-600">X</span> Health Identity
                 </h1>
-                <p className="text-sm font-semibold text-slate-500 mt-1.5">One Unified Portal for Patients, Doctors & Facilities</p>
+                <p className="text-xs font-bold text-slate-500 mt-1.5">One Unified Portal for Patients, Doctors & Facilities</p>
               </div>
 
               {/* Status Alerts */}
