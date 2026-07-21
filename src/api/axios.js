@@ -23,19 +23,12 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor: Extract error message & handle network retry fallback
+// Response Interceptor: Extract error message & handle network failure gracefully
 apiClient.interceptors.response.use(
   (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-    if ((error.code === 'ERR_NETWORK' || !error.response) && originalRequest && !originalRequest._retry) {
-      originalRequest._retry = true;
-      try {
-        originalRequest.baseURL = 'http://127.0.0.1:3000';
-        return await axios(originalRequest);
-      } catch (retryErr) {
-        return Promise.reject(retryErr);
-      }
+  (error) => {
+    if (error.code === 'ERR_NETWORK' || !error.response) {
+      return Promise.reject(new Error('Network or CORS preflight error: Unable to reach backend server (https://arogyax-server.vercel.app). Check backend deployment and CORS settings.'));
     }
     const message = error.response?.data?.error || error.response?.data?.details || error.message || 'API request failed';
     return Promise.reject(new Error(message));
