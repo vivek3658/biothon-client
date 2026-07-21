@@ -4,6 +4,7 @@ import { AppointmentCard } from './appointment/AppointmentCard';
 import { SlotGeneratorModal } from './appointment/SlotGeneratorModal';
 import { QRScannerModal } from './appointment/QRScannerModal';
 import { QRViewerModal } from './appointment/QRViewerModal';
+import { EditAppointmentModal } from './appointment/EditAppointmentModal';
 import { 
   Building2, 
   MapPin, 
@@ -79,6 +80,7 @@ export const OrgDashboard = () => {
   const [showSlotGenModal, setShowSlotGenModal] = useState(false);
   const [showQRScanModal, setShowQRScanModal] = useState(false);
   const [selectedTicketApt, setSelectedTicketApt] = useState(null);
+  const [editingAppointment, setEditingAppointment] = useState(null);
 
   // Edit Org Profile Modal
   const [showEditModal, setShowEditModal] = useState(false);
@@ -433,6 +435,23 @@ export const OrgDashboard = () => {
                     appointment={app}
                     userRole="receptionist"
                     onViewQR={(apt) => setSelectedTicketApt(apt)}
+                    onApprove={async (apt) => {
+                      try {
+                        await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'approved' });
+                        fetchOrgAppointments();
+                      } catch (e) {
+                        alert(e.message);
+                      }
+                    }}
+                    onReject={async (apt) => {
+                      const reason = prompt('Enter rejection reason:') || 'Rejected by facility';
+                      try {
+                        await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'rejected', rejectionReason: reason });
+                        fetchOrgAppointments();
+                      } catch (e) {
+                        alert(e.message);
+                      }
+                    }}
                     onCheckIn={async (apt) => {
                       try {
                         await apiClient.post('/appointments/check-in', { qrCodeToken: apt.qrCodeToken });
@@ -455,6 +474,17 @@ export const OrgDashboard = () => {
                         fetchOrgAppointments();
                       } catch (e) {
                         alert(e.message);
+                      }
+                    }}
+                    onEdit={(apt) => setEditingAppointment(apt)}
+                    onDelete={async (apt) => {
+                      if (window.confirm(`Delete appointment #${apt.tokenNumber || 1}?`)) {
+                        try {
+                          await apiClient.delete(`/appointments/${apt._id}`);
+                          fetchOrgAppointments();
+                        } catch (e) {
+                          alert(e.message);
+                        }
                       }
                     }}
                   />
@@ -757,6 +787,17 @@ export const OrgDashboard = () => {
         <QRViewerModal
           appointment={selectedTicketApt}
           onClose={() => setSelectedTicketApt(null)}
+        />
+      )}
+      {/* EDIT APPOINTMENT MODAL */}
+      {editingAppointment && (
+        <EditAppointmentModal
+          appointment={editingAppointment}
+          onClose={() => setEditingAppointment(null)}
+          onUpdated={() => {
+            fetchOrgAppointments();
+            setEditingAppointment(null);
+          }}
         />
       )}
     </div>

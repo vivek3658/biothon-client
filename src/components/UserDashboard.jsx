@@ -11,6 +11,7 @@ import { AppointmentCard } from './appointment/AppointmentCard';
 import { SlotGeneratorModal } from './appointment/SlotGeneratorModal';
 import { QRScannerModal } from './appointment/QRScannerModal';
 import { QRViewerModal } from './appointment/QRViewerModal';
+import { EditAppointmentModal } from './appointment/EditAppointmentModal';
 import { 
   User, 
   Heart, 
@@ -224,6 +225,7 @@ export const UserDashboard = () => {
   const [isBookingSlot, setIsBookingSlot] = useState(false);
   const [selectedTicketApt, setSelectedTicketApt] = useState(null);
   const [showSlotGenModal, setShowSlotGenModal] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState(null);
 
   // Medicine Marketplace & Cart State
   const [marketplaceItems, setMarketplaceItems] = useState([]);
@@ -1127,9 +1129,16 @@ export const UserDashboard = () => {
         (app.organizationId?.name || '').toLowerCase().includes(appointmentSearchQuery.toLowerCase()) ||
         (app.patientId?.name || '').toLowerCase().includes(appointmentSearchQuery.toLowerCase());
 
-      const matchesStatus = 
-        appointmentStatusFilter === 'all' || 
-        app.status === appointmentStatusFilter;
+      let matchesStatus = true;
+      if (appointmentStatusFilter === 'active') {
+        matchesStatus = ['requested', 'approved', 'appointed', 'checked_in', 'waiting', 'in_consultation'].includes(app.status || 'appointed');
+      } else if (appointmentStatusFilter === 'completed') {
+        matchesStatus = app.status === 'completed';
+      } else if (appointmentStatusFilter === 'cancelled') {
+        matchesStatus = app.status === 'cancelled' || app.status === 'rejected';
+      } else if (appointmentStatusFilter !== 'all') {
+        matchesStatus = app.status === appointmentStatusFilter;
+      }
 
       return matchesSearch && matchesStatus;
     });
@@ -2036,14 +2045,48 @@ export const UserDashboard = () => {
               </div>
             )}
 
-            {/* BOOKED APPOINTMENTS LIST WITH APPOINTMENTCARD */}
+            {/* BOOKED APPOINTMENTS LIST WITH CATEGORIZED SUB-TABS */}
             <div>
-              <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', marginBottom: '14px' }}>
-                Appointments Stream ({filteredAppointments.length})
-              </h4>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                  Appointments Stream ({filteredAppointments.length})
+                </h4>
+
+                <div style={{ display: 'flex', gap: '6px', background: '#f1f5f9', padding: '4px', borderRadius: '12px' }}>
+                  {[
+                    { id: 'all', label: 'All' },
+                    { id: 'active', label: 'Active & Upcoming' },
+                    { id: 'completed', label: 'Completed' },
+                    { id: 'cancelled', label: 'Cancelled & Rejected' }
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setAppointmentStatusFilter(tab.id)}
+                      style={{
+                        padding: '5px 12px',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        borderRadius: '8px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        background: appointmentStatusFilter === tab.id ? '#ffffff' : 'transparent',
+                        color: appointmentStatusFilter === tab.id ? '#0284c7' : '#64748b',
+                        boxShadow: appointmentStatusFilter === tab.id ? '0 2px 4px rgba(0,0,0,0.06)' : 'none'
+                      }}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {filteredAppointments.length === 0 ? (
-                <p style={{ fontSize: '0.85rem', color: '#64748b' }}>No appointment records found matching filter.</p>
+                <div style={{ textAlign: 'center', padding: '36px', background: '#f8fafc', borderRadius: '16px', border: '1px border-slate-200' }}>
+                  <p style={{ fontSize: '0.88rem', color: '#64748b', fontWeight: 600 }}>
+                    No appointment records found under the "{appointmentStatusFilter}" category.
+                  </p>
+                </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   {filteredAppointments.map(app => (
@@ -2052,6 +2095,23 @@ export const UserDashboard = () => {
                       appointment={app}
                       userRole={activeMode === 'doctor' ? 'doctor' : 'patient'}
                       onViewQR={(apt) => setSelectedTicketApt(apt)}
+                      onApprove={async (apt) => {
+                        try {
+                          await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'approved' });
+                          fetchAppointmentsAndSlots();
+                        } catch (e) {
+                          alert(e.message);
+                        }
+                      }}
+                      onReject={async (apt) => {
+                        const reason = prompt('Enter rejection reason:') || 'Rejected by practitioner';
+                        try {
+                          await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'rejected', rejectionReason: reason });
+                          fetchAppointmentsAndSlots();
+                        } catch (e) {
+                          alert(e.message);
+                        }
+                      }}
                       onStartConsultation={async (apt) => {
                         try {
                           await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'in_consultation' });
@@ -2073,6 +2133,17 @@ export const UserDashboard = () => {
                           });
                         } catch (e) {
                           alert(e.message);
+                        }
+                      }}
+                      onEdit={(apt) => setEditingAppointment(apt)}
+                      onDelete={async (apt) => {
+                        if (window.confirm(`Are you sure you want to delete appointment #${apt.tokenNumber || 1}?`)) {
+                          try {
+                            await apiClient.delete(`/appointments/${apt._id}`);
+                            fetchAppointmentsAndSlots();
+                          } catch (e) {
+                            alert(e.message);
+                          }
                         }
                       }}
                     />
@@ -2559,6 +2630,17 @@ export const UserDashboard = () => {
         <QRViewerModal
           appointment={selectedTicketApt}
           onClose={() => setSelectedTicketApt(null)}
+        />
+      )}
+      {/* EDIT APPOINTMENT MODAL */}
+      {editingAppointment && (
+        <EditAppointmentModal
+          appointment={editingAppointment}
+          onClose={() => setEditingAppointment(null)}
+          onUpdated={() => {
+            fetchAppointmentsAndSlots();
+            setEditingAppointment(null);
+          }}
         />
       )}
     </div>
