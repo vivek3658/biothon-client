@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const VERCEL_API_HOST = 'https://arogyax-server.vercel.app';
+const VERCEL_API_HOST = 'https://arogyax-server.onrender.com';
 const BASE_URL = import.meta.env.VITE_API_URL || VERCEL_API_HOST;
 
 export const apiClient = axios.create({
