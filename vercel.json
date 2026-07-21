@@ -1,5 +1,20 @@
 {
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin-allow-popups"
+        }
+      ]
+    }
+  ],
   "rewrites": [
+    {
+      "source": "/user/:path*",
+      "destination": "https://arogyax-server.vercel.app/user/:path*"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
