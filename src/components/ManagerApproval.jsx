@@ -15,9 +15,10 @@ import {
   ShieldCheck,
   Stethoscope
 } from 'lucide-react';
+import { apiClient } from '../api/axios';
 
 export const ManagerApproval = () => {
-  const [activeSubTab, setActiveSubTab] = useState('orgs'); // 'orgs' | 'doctors'
+  const [activeSubTab, setActiveSubTab] = useState('organizations'); // 'organizations' | 'doctors'
   
   // Pending Orgs
   const [pendingOrgs, setPendingOrgs] = useState([]);
@@ -31,7 +32,7 @@ export const ManagerApproval = () => {
   const [selectedOrg, setSelectedOrg] = useState(null);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
-  const [rejectReason, setRejectReason] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchData = async () => {
@@ -40,20 +41,18 @@ export const ManagerApproval = () => {
       setError('');
       
       // Fetch Orgs
-      const resOrg = await fetch('/manager/organizations/pending');
-      if (resOrg.ok) {
-        const dataOrg = await resOrg.json();
+      try {
+        const { data: dataOrg } = await apiClient.get('/manager/organizations/pending');
         setPendingOrgs(dataOrg.organizations || []);
-      }
+      } catch (e) {}
 
       // Fetch Doctors
-      const resDoc = await fetch('/manager/doctors/pending');
-      if (resDoc.ok) {
-        const dataDoc = await resDoc.json();
+      try {
+        const { data: dataDoc } = await apiClient.get('/manager/doctors/pending');
         setPendingDoctors(dataDoc.doctors || []);
-      }
+      } catch (e) {}
     } catch (err) {
-      setError('Network error fetching verification requests');
+      setError('Error fetching verification requests');
     } finally {
       setLoading(false);
     }
@@ -67,19 +66,13 @@ export const ManagerApproval = () => {
     try {
       setIsSubmitting(true);
       setError('');
-      const res = await fetch(`/manager/organizations/${org._id}/verify`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'approve' })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Approval failed');
+      await apiClient.patch(`/manager/organizations/${org._id}/verify`, { action: 'approve' });
 
       setSuccessMsg(`Organization "${org.name}" approved successfully!`);
       setSelectedOrg(null);
       fetchData();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Approval failed');
     } finally {
       setIsSubmitting(false);
     }
@@ -89,13 +82,7 @@ export const ManagerApproval = () => {
     try {
       setIsSubmitting(true);
       setError('');
-      const res = await fetch(`/manager/doctors/${doc._id}/verify`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'approve' })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Doctor approval failed');
+      await apiClient.patch(`/manager/doctors/${doc._id}/verify`, { action: 'approve' });
 
       setSuccessMsg(`Doctor "${doc.name}" verified successfully!`);
       setSelectedDoctor(null);

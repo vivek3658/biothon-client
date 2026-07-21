@@ -457,13 +457,12 @@ export const UserDashboard = () => {
     fetchAdminMedicines();
   }, []);
 
-  // Search Organizations for Doctor Affiliation Request
+  // Search Organizations for Doctor Affiliation
   const handleSearchOrganizations = async (query = '') => {
     setOrgSearchQuery(query);
     try {
-      const res = await fetch(`/org/search?query=${encodeURIComponent(query.trim())}`, { headers: getAuthHeaders(false) });
-      const data = await res.json();
-      if (res.ok) {
+      const { ok, data } = await safeFetchJson(`/org/search?query=${encodeURIComponent(query.trim())}`);
+      if (ok && data) {
         setOrgSearchResults(data.organizations || []);
       }
     } catch (err) {
@@ -481,13 +480,11 @@ export const UserDashboard = () => {
   const handleSendAffiliationRequest = async (orgId, orgName) => {
     try {
       setError('');
-      const res = await fetch('/user/affiliate-request', {
+      const { ok, data, error: errStr } = await safeFetchJson('/user/affiliate-request', {
         method: 'POST',
-        headers: getAuthHeaders(true),
         body: JSON.stringify({ organizationId: orgId })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to send affiliation request.');
+      if (!ok) throw new Error(errStr || 'Failed to send affiliation request.');
 
       setSuccessMsg(`Affiliation request sent to ${orgName}! Waiting for hospital approval.`);
       refreshUser();
@@ -502,9 +499,8 @@ export const UserDashboard = () => {
     try {
       setIsSubmitting(true);
       setError('');
-      const res = await fetch('/appointments/slots', {
+      const { ok, data, error: errStr } = await safeFetchJson('/appointments/slots', {
         method: 'POST',
-        headers: getAuthHeaders(true),
         body: JSON.stringify({
           title: docSlotTitle,
           slotDate: docSlotDate,
@@ -515,8 +511,7 @@ export const UserDashboard = () => {
           consultationMode: docConsultationMode
         })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create slot.');
+      if (!ok) throw new Error(errStr || 'Failed to create slot.');
 
       setSuccessMsg('Consultation slot published successfully!');
       fetchAppointmentsAndSlots();
@@ -580,20 +575,20 @@ export const UserDashboard = () => {
     try {
       setIsBookingSlot(true);
       setError('');
-      let res = await fetch('/appointments/book', {
+      let { ok, data, error: errStr } = await safeFetchJson('/appointments/book', {
         method: 'POST',
-        headers: getAuthHeaders(true),
         body: JSON.stringify({ slotId, notes: 'Booked via ArogyaX Patient Portal' })
       });
-      if (!res.ok) {
-        res = await fetch('/appointments', {
+      if (!ok) {
+        const res2 = await safeFetchJson('/appointments', {
           method: 'POST',
-          headers: getAuthHeaders(true),
           body: JSON.stringify({ slotId, notes: 'Booked via ArogyaX Patient Portal' })
         });
+        ok = res2.ok;
+        data = res2.data;
+        errStr = res2.error;
       }
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to book appointment.');
+      if (!ok) throw new Error(errStr || 'Failed to book appointment.');
 
       setSuccessMsg('Appointment booked successfully! Confirmation sent to your portal.');
       fetchAppointmentsAndSlots();
@@ -1027,43 +1022,37 @@ export const UserDashboard = () => {
     try {
       setLoading(true);
       setError('');
-      const res = await fetch(`/user/search?email=${encodeURIComponent(familySearchEmail.trim())}`, { headers: getAuthHeaders(false) });
-      const data = await res.json();
-      if (res.ok && data.user) {
-        setFamilySearchResult(data.user);
-      } else {
-        setFamilySearchResult(null);
-        setError(data.error || 'No registered patient found with this email.');
-      }
+      const { ok, data, error: errStr } = await safeFetchJson(`/user/search?email=${encodeURIComponent(familySearchEmail.trim())}`);
+      if (!ok) throw new Error(errStr || 'No registered patient found with this email.');
+
+      setFamilyFoundUser(data.user);
+      setSuccessMsg(`Found patient: ${data.user?.name || data.email}`);
     } catch (err) {
       setError(err.message);
+      setFamilyFoundUser(null);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle Send Request / Create Family Member
-  const handleAddFamilyMember = async (e) => {
+  // Add Family Member Profile
+  const handleAddFamilyMemberSubmit = async (e) => {
     e.preventDefault();
     try {
       setIsSubmitting(true);
       setError('');
-      const payload = familyAddMode === 'search' ? {
-        email: familySearchEmail.trim(),
-        relation: familyNewRelation
-      } : {
+      const payload = {
+        email: familyNewEmail.trim(),
         name: familyNewName.trim(),
         bloodGroup: familyNewBloodGroup,
         relation: familyNewRelation
       };
 
-      const res = await fetch('/user/managed-profiles/request', {
+      const { ok, data, error: errStr } = await safeFetchJson('/user/managed-profiles/request', {
         method: 'POST',
-        headers: getAuthHeaders(true),
         body: JSON.stringify(payload)
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to add family member profile.');
+      if (!ok) throw new Error(errStr || 'Failed to add family member profile.');
 
       setSuccessMsg(data.message || 'Family member profile connected successfully!');
       setShowAddFamilyModal(false);
@@ -1079,12 +1068,10 @@ export const UserDashboard = () => {
   const handleRemoveManagedProfile = async (targetUserId) => {
     if (!window.confirm('Unlink this family member profile?')) return;
     try {
-      const res = await fetch(`/user/managed-profiles/${targetUserId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(false)
+      const { ok, error: errStr } = await safeFetchJson(`/user/managed-profiles/${targetUserId}`, {
+        method: 'DELETE'
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to unlink family profile.');
+      if (!ok) throw new Error(errStr || 'Failed to unlink family profile.');
 
       setSuccessMsg('Family member profile unlinked.');
       if (selectedManagedProfile?._id === targetUserId) {

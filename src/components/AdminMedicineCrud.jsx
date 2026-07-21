@@ -15,6 +15,8 @@ import {
   ShieldAlert
 } from 'lucide-react';
 
+import { apiClient } from '../api/axios';
+
 const MEDICINE_TYPES = [
   { value: 'oral_tablet', label: 'Oral Tablet' },
   { value: 'capsule', label: 'Capsule' },
@@ -57,35 +59,20 @@ export const AdminMedicineCrud = () => {
   const [precautions, setPrecautions] = useState('Avoid alcohol consumption while taking this medication.');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const getAuthHeaders = (hasBody = true) => {
-    const token = localStorage.getItem('token');
-    const headers = {};
-    if (hasBody) headers['Content-Type'] = 'application/json';
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    return headers;
-  };
-
   const fetchMedicines = async (page = 1, search = searchTerm, typeF = typeFilter) => {
     try {
       setLoading(true);
       setError('');
+
       const params = new URLSearchParams({ page, limit: 10 });
       if (search.trim()) params.append('search', search.trim());
       if (typeF) params.append('type', typeF);
 
-      const res = await fetch(`/admin/medicines?${params.toString()}`, {
-        headers: getAuthHeaders(false)
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        setMedicines(data.data || []);
-        if (data.pagination) setPagination(data.pagination);
-      } else {
-        setError(data.error || 'Failed to fetch medicine catalog');
-      }
+      const { data } = await apiClient.get(`/admin/medicines?${params.toString()}`);
+      setMedicines(data.data || []);
+      if (data.pagination) setPagination(data.pagination);
     } catch (err) {
-      setError('Network error fetching medicine catalog');
+      setError(err.message || 'Error fetching medicine catalog');
     } finally {
       setLoading(false);
     }
@@ -151,17 +138,11 @@ export const AdminMedicineCrud = () => {
         precautions: precautions.trim()
       };
 
-      const url = modalMode === 'create' ? '/admin/medicines' : `/admin/medicines/${selectedMedicine._id}`;
-      const method = modalMode === 'create' ? 'POST' : 'PUT';
-
-      const res = await fetch(url, {
-        method,
-        headers: getAuthHeaders(true),
-        body: JSON.stringify(payload)
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to save medicine');
+      if (modalMode === 'create') {
+        await apiClient.post('/admin/medicines', payload);
+      } else {
+        await apiClient.put(`/admin/medicines/${selectedMedicine._id}`, payload);
+      }
 
       setSuccessMsg(modalMode === 'create' 
         ? `Medicine "${medicineName}" created in catalog!` 
@@ -183,14 +164,7 @@ export const AdminMedicineCrud = () => {
     try {
       setIsSubmitting(true);
       setError('');
-      // Use getAuthHeaders(false) so no Content-Type is sent on empty DELETE body!
-      const res = await fetch(`/admin/medicines/${selectedMedicine._id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(false)
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete medicine');
+      await apiClient.delete(`/admin/medicines/${selectedMedicine._id}`);
 
       setSuccessMsg(`Medicine "${selectedMedicine.medicineName}" deleted successfully!`);
       setShowDeleteModal(false);

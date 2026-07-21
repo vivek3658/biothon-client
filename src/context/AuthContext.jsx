@@ -31,11 +31,16 @@ export const AuthProvider = ({ children }) => {
       } catch (e) {}
 
       // 1. Check Employee Auth if token belongs to employee
-      if (payload?.role === 'admin' || payload?.role === 'manager') {
+      if (payload?.role === 'admin' || payload?.role === 'manager' || payload?.entityModel === 'Employee') {
         try {
           const { data } = await apiClient.get('/employee-auth/me');
           if (data?.identity?.role) {
-            setUser(data.identity);
+            setUser({
+              id: data.identity.id || null,
+              username: data.identity.username,
+              role: data.identity.role,
+              entityModel: 'Employee'
+            });
             setUserProfile(null);
             setLoading(false);
             return;
@@ -97,7 +102,12 @@ export const AuthProvider = ({ children }) => {
       try {
         const { data } = await apiClient.get('/employee-auth/me');
         if (data?.identity?.role) {
-          setUser(data.identity);
+          setUser({
+            id: data.identity.id || null,
+            username: data.identity.username,
+            role: data.identity.role,
+            entityModel: 'Employee'
+          });
           setUserProfile(null);
           setLoading(false);
           return;
@@ -119,6 +129,22 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     fetchCurrentUser();
   }, []);
+
+  const loginUnified = async (emailOrUsername, password) => {
+    setError(null);
+    try {
+      const { data } = await apiClient.post('/auth/login', {
+        email: emailOrUsername,
+        username: emailOrUsername,
+        password
+      });
+      if (data.token) localStorage.setItem('token', data.token);
+      await fetchCurrentUser();
+      return data;
+    } catch (err) {
+      throw new Error(err.message || 'Login failed. Please check credentials.');
+    }
+  };
 
   const loginEmployee = async (username, password) => {
     setError(null);
@@ -195,6 +221,7 @@ export const AuthProvider = ({ children }) => {
       userProfile,
       loading,
       error,
+      loginUnified,
       loginEmployee,
       loginUser,
       loginOrg,

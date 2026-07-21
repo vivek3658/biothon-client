@@ -9,13 +9,14 @@ import {
   RefreshCw,
   ExternalLink
 } from 'lucide-react';
+import { apiClient } from '../api/axios';
 
 export const OrganizationList = () => {
   const [organizations, setOrganizations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const fetchOrganizations = async () => {
     try {
@@ -25,16 +26,10 @@ export const OrganizationList = () => {
         ? '/manager/organizations' 
         : `/manager/organizations?status=${statusFilter}`;
       
-      const res = await fetch(url);
-      const data = await res.json();
-
-      if (res.ok) {
-        setOrganizations(data.organizations || []);
-      } else {
-        setError(data.error || 'Failed to fetch organizations list');
-      }
+      const { data } = await apiClient.get(url);
+      setOrganizations(data.organizations || []);
     } catch (err) {
-      setError('Network error fetching organizations');
+      setError(err.message || 'Error fetching organizations');
     } finally {
       setLoading(false);
     }

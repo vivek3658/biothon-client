@@ -17,15 +17,18 @@ import {
   Pill
 } from 'lucide-react';
 
+import { apiClient } from '../api/axios';
+
 export const DashboardPage = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [collapsed, setCollapsed] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Determine Organization vs User role priority
-  const isOrgRole = user?.entityModel === 'Organization' || ['hospital', 'clinic', 'laboratory', 'pharmacy', 'other'].includes(user?.role);
-  const isUserRole = !isOrgRole && (user?.entityModel === 'User' || user?.role === 'patient' || user?.role === 'doctor');
+  // Strict role classification
+  const isAdminOrManager = user?.role === 'admin' || user?.role === 'manager' || user?.entityModel === 'Employee';
+  const isOrgRole = !isAdminOrManager && (user?.entityModel === 'Organization' || ['hospital', 'clinic', 'laboratory', 'pharmacy', 'other'].includes(user?.role));
+  const isUserRole = !isAdminOrManager && !isOrgRole && (user?.entityModel === 'User' || user?.role === 'patient' || user?.role === 'doctor');
 
   const [stats, setStats] = useState({
     managersCount: 0,
@@ -38,40 +41,36 @@ export const DashboardPage = () => {
   const fetchStats = async () => {
     try {
       setIsRefreshing(true);
-      if (isUserRole || isOrgRole) return;
+      if (!isAdminOrManager) return;
 
       let mCount = 0;
       if (user?.role === 'admin') {
-        const resM = await fetch('/admin/managers?page=1');
-        if (resM.ok) {
-          const dataM = await resM.json();
+        try {
+          const { data: dataM } = await apiClient.get('/admin/managers?page=1');
           mCount = dataM.pagination?.totalItems || (dataM.data ? dataM.data.length : 0);
-        }
+        } catch (e) {}
       }
 
       let pCount = 0;
-      const resP = await fetch('/manager/organizations/pending');
-      if (resP.ok) {
-        const dataP = await resP.json();
+      try {
+        const { data: dataP } = await apiClient.get('/manager/organizations/pending');
         pCount = dataP.count || 0;
-      }
+      } catch (e) {}
 
       let tCount = 0;
       let aCount = 0;
-      const resA = await fetch('/manager/organizations');
-      if (resA.ok) {
-        const dataA = await resA.json();
+      try {
+        const { data: dataA } = await apiClient.get('/manager/organizations');
         const orgs = dataA.organizations || [];
         tCount = orgs.length;
         aCount = orgs.filter(o => o.verificationStatus === 'approved').length;
-      }
+      } catch (e) {}
 
       let medCount = 0;
-      const resMed = await fetch('/medicines?limit=1');
-      if (resMed.ok) {
-        const dataMed = await resMed.json();
+      try {
+        const { data: dataMed } = await apiClient.get('/medicines?limit=1');
         medCount = dataMed.pagination?.totalItems || (dataMed.data ? dataMed.data.length : 0);
-      }
+      } catch (e) {}
 
       setStats({
         managersCount: mCount,

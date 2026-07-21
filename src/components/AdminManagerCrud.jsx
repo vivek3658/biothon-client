@@ -13,6 +13,8 @@ import {
   ChevronRight
 } from 'lucide-react';
 
+import { apiClient } from '../api/axios';
+
 export const AdminManagerCrud = () => {
   const [managers, setManagers] = useState([]);
   const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1, totalItems: 0 });
@@ -42,15 +44,12 @@ export const AdminManagerCrud = () => {
     try {
       setLoading(true);
       setError('');
-      const res = await fetch(`/admin/managers?page=${page}`);
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch managers list');
+      const { data } = await apiClient.get(`/admin/managers?page=${page}`);
 
       setManagers(data.data || []);
       if (data.pagination) setPagination(data.pagination);
     } catch (err) {
-      setError(err.message || 'Network error fetching managers');
+      setError(err.message || 'Error fetching managers');
     } finally {
       setLoading(false);
     }
@@ -91,19 +90,12 @@ export const AdminManagerCrud = () => {
     try {
       setIsSubmitting(true);
       setError('');
-      const res = await fetch('/admin/managers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newName.trim(),
-          email: newEmail.trim(),
-          username: newUsername.trim(),
-          password: newPassword
-        })
+      await apiClient.post('/admin/managers', {
+        name: newName.trim(),
+        email: newEmail.trim(),
+        username: newUsername.trim(),
+        password: newPassword
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create manager');
 
       setSuccessMsg(`Manager account "${newUsername}" provisioned successfully!`);
       setShowCreateModal(false);
@@ -123,19 +115,12 @@ export const AdminManagerCrud = () => {
     try {
       setIsSubmitting(true);
       setError('');
-      const res = await fetch(`/admin/managers/${selectedManager._id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: editName.trim(),
-          email: editEmail.trim(),
-          username: editUsername.trim(),
-          ...(editPassword ? { password: editPassword } : {})
-        })
+      await apiClient.put(`/admin/managers/${selectedManager._id}`, {
+        name: editName.trim(),
+        email: editEmail.trim(),
+        username: editUsername.trim(),
+        ...(editPassword ? { password: editPassword } : {})
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update manager');
 
       setSuccessMsg(`Manager "${selectedManager.username}" updated successfully!`);
       setShowEditModal(false);
@@ -154,9 +139,7 @@ export const AdminManagerCrud = () => {
     try {
       setIsSubmitting(true);
       setError('');
-      const res = await fetch(`/admin/managers/${selectedManager._id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete manager');
+      await apiClient.delete(`/admin/managers/${selectedManager._id}`);
 
       setSuccessMsg(`Manager "${selectedManager.username}" deleted successfully.`);
       setShowDeleteModal(false);
