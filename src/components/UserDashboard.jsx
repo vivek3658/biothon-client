@@ -5,6 +5,7 @@ import qrScannerWorkerPath from 'qr-scanner/qr-scanner-worker.min?url';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAuth } from '../context/AuthContext';
+import { apiClient } from '../api/axios';
 import { PrescriptionPage } from '../pages/PrescriptionPage';
 import { 
   User, 
@@ -270,12 +271,22 @@ export const UserDashboard = () => {
 
   const safeFetchJson = async (url, options = {}) => {
     try {
-      const res = await fetch(url, options);
-      if (!res.ok) return { ok: false, status: res.status, data: null };
-      const data = await res.json();
-      return { ok: true, status: res.status, data };
+      const method = (options.method || 'GET').toLowerCase();
+      let res;
+      if (method === 'get') {
+        res = await apiClient.get(url, options);
+      } else if (method === 'post') {
+        res = await apiClient.post(url, options.body ? JSON.parse(options.body) : {}, options);
+      } else if (method === 'put') {
+        res = await apiClient.put(url, options.body ? JSON.parse(options.body) : {}, options);
+      } else if (method === 'delete') {
+        res = await apiClient.delete(url, options);
+      } else {
+        res = await apiClient(url, options);
+      }
+      return { ok: true, status: res.status, data: res.data };
     } catch (err) {
-      return { ok: false, status: 500, error: err.message, data: null };
+      return { ok: false, status: err.response?.status || 500, error: err.message, data: err.response?.data || null };
     }
   };
 
@@ -330,9 +341,8 @@ export const UserDashboard = () => {
   // Fetch Nearby Healthcare Facilities for Leaflet Map
   const fetchNearbyFacilities = async () => {
     try {
-      const res = await fetch('/org/search?query=', { headers: getAuthHeaders(false) });
-      const data = await res.json();
-      if (res.ok && data.organizations) {
+      const { data } = await apiClient.get('/org/search?query=');
+      if (data.organizations) {
         setNearbyOrganizations(data.organizations);
       }
     } catch (err) {
@@ -434,9 +444,8 @@ export const UserDashboard = () => {
   // Load Admin Medicines Catalog
   const fetchAdminMedicines = async () => {
     try {
-      const res = await fetch('/medicines?limit=100', { headers: getAuthHeaders(false) });
-      const data = await res.json();
-      if (res.ok && Array.isArray(data.data)) {
+      const { data } = await apiClient.get('/medicines?limit=100');
+      if (Array.isArray(data.data)) {
         setCatalogMedicines(data.data);
       }
     } catch (err) {

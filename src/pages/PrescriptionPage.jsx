@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { apiClient } from '../api/axios';
 import { 
   Pill, 
   FileText, 
@@ -33,33 +34,23 @@ export const PrescriptionPage = ({ prescriptionId, onBack }) => {
   const [isSearchingMarketplace, setIsSearchingMarketplace] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState('');
 
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('token');
-    return token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
-  };
-
   useEffect(() => {
     const fetchPrescriptionDetails = async () => {
       try {
         setLoading(true);
         setError('');
         const endpoint = prescriptionId ? `/prescriptions/${prescriptionId}` : '/prescriptions';
-        const res = await fetch(endpoint, { headers: getAuthHeaders() });
-        const data = await res.json();
+        const { data } = await apiClient.get(endpoint);
 
-        if (res.ok) {
-          if (prescriptionId && data.prescription) {
-            setPrescription(data.prescription);
-          } else if (Array.isArray(data.prescriptions) && data.prescriptions.length > 0) {
-            setPrescription(data.prescriptions[0]); // Show latest
-          } else {
-            setError('No prescription records found.');
-          }
+        if (prescriptionId && data.prescription) {
+          setPrescription(data.prescription);
+        } else if (Array.isArray(data.prescriptions) && data.prescriptions.length > 0) {
+          setPrescription(data.prescriptions[0]); // Show latest
         } else {
-          setError(data.error || 'Failed to load prescription.');
+          setError('No prescription records found.');
         }
       } catch (err) {
-        setError('Network error loading prescription.');
+        setError(err.message || 'Network error loading prescription.');
       } finally {
         setLoading(false);
       }
@@ -81,10 +72,9 @@ export const PrescriptionPage = ({ prescriptionId, onBack }) => {
       setShowLowCostModal(true);
 
       const targetRxId = prescription._id;
-      const res = await fetch(`/pharmacy/marketplace/${targetRxId}`, { headers: getAuthHeaders() });
-      const data = await res.json();
+      const { data } = await apiClient.get(`/pharmacy/marketplace/${targetRxId}`);
 
-      if (res.ok && data.items) {
+      if (data.items) {
         // Group items by prescribed medication and select lowest price pharmacy option
         const lowestMap = new Map();
         data.items.forEach(inv => {
@@ -96,9 +86,8 @@ export const PrescriptionPage = ({ prescriptionId, onBack }) => {
         setLowCostItems(Array.from(lowestMap.values()));
       } else {
         // Fallback: search general pharmacy inventory
-        const invRes = await fetch('/pharmacy/inventory', { headers: getAuthHeaders() });
-        const invData = await invRes.json();
-        if (invRes.ok && invData.items) {
+        const { data: invData } = await apiClient.get('/pharmacy/inventory');
+        if (invData.items) {
           const lowestMap = new Map();
           prescription.medications.forEach(med => {
             const matches = invData.items.filter(i => 
@@ -133,17 +122,11 @@ export const PrescriptionPage = ({ prescriptionId, onBack }) => {
         quantity: 1
       }));
 
-      const res = await fetch('/pharmacy/orders', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          organizationId: firstOrgId,
-          prescriptionId: prescription._id,
-          items: orderItems
-        })
+      const { data } = await apiClient.post('/pharmacy/orders', {
+        organizationId: firstOrgId,
+        prescriptionId: prescription._id,
+        items: orderItems
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to place medicine order.');
 
       setOrderSuccess(`Order placed successfully! Order #${data.order?._id?.slice(-6).toUpperCase()}`);
     } catch (err) {

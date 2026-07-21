@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { GoogleOAuthProvider, GoogleLogin, useGoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
+import { apiClient } from '../api/axios';
 import {
   Lock,
   User,
@@ -236,55 +237,39 @@ const LoginPageContent = () => {
         await loginUser(userEmail.trim(), userPassword);
       } else {
         let accountId = null;
-        let token = localStorage.getItem('token');
 
         if (userPassword) {
-          const res1 = await fetch('/auth/create-account', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ email: userEmail.trim(), password: userPassword, entityModel: 'User' })
+          const { data: data1 } = await apiClient.post('/auth/create-account', {
+            email: userEmail.trim(),
+            password: userPassword,
+            entityModel: 'User'
           });
-          const { ok: ok1, data: data1 } = await safeParseResponse(res1);
-          if (!ok1) throw new Error(data1.error || data1.details || 'Failed to create user account.');
           if (data1.accountId) accountId = data1.accountId;
           if (data1.token) {
-            token = data1.token;
             localStorage.setItem('token', data1.token);
           }
         }
 
-        const authHeaders = { 'Content-Type': 'application/json' };
-        if (token) authHeaders.Authorization = `Bearer ${token}`;
-
-        const res2 = await fetch('/user/complete-profile', {
-          method: 'POST',
-          headers: authHeaders,
-          credentials: 'include',
-          body: JSON.stringify({
-            accountId,
-            email: userEmail.trim(),
-            name: userName || 'User',
-            isDoctor,
-            location: {
-              houseNo: houseNo || '',
-              roomNo: roomNo || '',
-              floorNo: parseInt(floorNo, 10) || 0,
-              landmark: landmark || '',
-              city: city || 'Ahmedabad',
-              state: stateName || 'Gujarat',
-              pincode: pincode || '380001'
-            },
-            coordinates: [parseFloat(longitude) || 72.5714, parseFloat(latitude) || 23.0225],
-            bloodGroup: bloodGroup || 'A+',
-            certificateNo: isDoctor ? (certNo || `MCI-${Date.now()}`) : null,
-            certificateDoc: isDoctor ? (certDoc || 'https://example.com/doc-cert.pdf') : null,
-            speciality: isDoctor ? (speciality || 'General Medicine') : null
-          })
+        const { data: data2 } = await apiClient.post('/user/complete-profile', {
+          accountId,
+          email: userEmail.trim(),
+          name: userName || 'User',
+          isDoctor,
+          location: {
+            houseNo: houseNo || '',
+            roomNo: roomNo || '',
+            floorNo: parseInt(floorNo, 10) || 0,
+            landmark: landmark || '',
+            city: city || 'Ahmedabad',
+            state: stateName || 'Gujarat',
+            pincode: pincode || '380001'
+          },
+          coordinates: [parseFloat(longitude) || 72.5714, parseFloat(latitude) || 23.0225],
+          bloodGroup: bloodGroup || 'A+',
+          certificateNo: isDoctor ? (certNo || `MCI-${Date.now()}`) : null,
+          certificateDoc: isDoctor ? (certDoc || 'https://example.com/doc-cert.pdf') : null,
+          speciality: isDoctor ? (speciality || 'General Medicine') : null
         });
-
-        const { ok: ok2, data: data2 } = await safeParseResponse(res2);
-        if (!ok2) throw new Error(data2.error || data2.details || 'User profile completion failed.');
 
         if (data2.token) localStorage.setItem('token', data2.token);
 
@@ -312,53 +297,37 @@ const LoginPageContent = () => {
         await loginOrg(orgEmail.trim(), orgPassword);
       } else {
         let accountId = null;
-        let token = localStorage.getItem('token');
 
         if (orgPassword) {
-          const res1 = await fetch('/auth/create-account', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ email: orgEmail.trim(), password: orgPassword, entityModel: 'Organization' })
+          const { data: data1 } = await apiClient.post('/auth/create-account', {
+            email: orgEmail.trim(),
+            password: orgPassword,
+            entityModel: 'Organization'
           });
-          const { ok: ok1, data: data1 } = await safeParseResponse(res1);
-          if (!ok1) throw new Error(data1.error || data1.details || 'Failed to create organization account.');
           if (data1.accountId) accountId = data1.accountId;
           if (data1.token) {
-            token = data1.token;
             localStorage.setItem('token', data1.token);
           }
         }
 
-        const authHeaders = { 'Content-Type': 'application/json' };
-        if (token) authHeaders.Authorization = `Bearer ${token}`;
-
-        const res2 = await fetch('/auth/complete-org-profile', {
-          method: 'POST',
-          headers: authHeaders,
-          credentials: 'include',
-          body: JSON.stringify({
-            accountId,
-            email: orgEmail.trim(),
-            name: orgName || 'Organization',
-            facilityType,
-            contactNumber: contactNumber || '9876543210',
-            location: {
-              buildingNo: orgBuilding || '',
-              floorNo: parseInt(orgFloorNo, 10) || 0,
-              landmark: orgLandmark || '',
-              city: orgCity || 'Ahmedabad',
-              state: orgState || 'Gujarat',
-              pincode: orgPincode || '380001'
-            },
-            coordinates: [parseFloat(orgLng) || 72.5714, parseFloat(orgLat) || 23.0225],
-            organizationCertificateNo: orgCertNo || `ORG-CERT-${Date.now()}`,
-            organizationCertificateUrl: orgCertUrl || 'https://example.com/org-cert.pdf'
-          })
+        const { data: data2 } = await apiClient.post('/auth/complete-org-profile', {
+          accountId,
+          email: orgEmail.trim(),
+          name: orgName || 'Organization',
+          facilityType,
+          contactNumber: contactNumber || '9876543210',
+          location: {
+            buildingNo: orgBuilding || '',
+            floorNo: parseInt(orgFloorNo, 10) || 0,
+            landmark: orgLandmark || '',
+            city: orgCity || 'Ahmedabad',
+            state: orgState || 'Gujarat',
+            pincode: orgPincode || '380001'
+          },
+          coordinates: [parseFloat(orgLng) || 72.5714, parseFloat(orgLat) || 23.0225],
+          organizationCertificateNo: orgCertNo || `ORG-CERT-${Date.now()}`,
+          organizationCertificateUrl: orgCertUrl || 'https://example.com/org-cert.pdf'
         });
-
-        const { ok: ok2, data: data2 } = await safeParseResponse(res2);
-        if (!ok2) throw new Error(data2.error || data2.details || 'Organization profile completion failed.');
 
         if (data2.token) localStorage.setItem('token', data2.token);
 

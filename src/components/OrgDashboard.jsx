@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { apiClient } from '../api/axios';
 import { 
   Building2, 
   MapPin, 
@@ -105,9 +106,8 @@ export const OrgDashboard = () => {
   const fetchPendingDoctors = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/org/pending-doctors', { headers: getAuthHeaders(false) });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      const { data } = await apiClient.get('/org/pending-doctors');
+      if (data.success) {
         setDoctorsList(data.doctors || []);
       }
     } catch (err) {
@@ -117,33 +117,45 @@ export const OrgDashboard = () => {
     }
   };
 
-const safeFetchJson = async (url, options = {}) => {
-  try {
-    const res = await fetch(url, options);
-    if (!res.ok) return { ok: false, status: res.status, data: null };
-    const data = await res.json();
-    return { ok: true, status: res.status, data };
-  } catch (err) {
-    return { ok: false, status: 500, error: err.message, data: null };
-  }
-};
+  const safeFetchJson = async (url, options = {}) => {
+    try {
+      const method = (options.method || 'GET').toLowerCase();
+      let res;
+      if (method === 'get') {
+        res = await apiClient.get(url, options);
+      } else if (method === 'post') {
+        res = await apiClient.post(url, options.body ? JSON.parse(options.body) : {}, options);
+      } else if (method === 'put') {
+        res = await apiClient.put(url, options.body ? JSON.parse(options.body) : {}, options);
+      } else if (method === 'patch') {
+        res = await apiClient.patch(url, options.body ? JSON.parse(options.body) : {}, options);
+      } else if (method === 'delete') {
+        res = await apiClient.delete(url, options);
+      } else {
+        res = await apiClient(url, options);
+      }
+      return { ok: true, status: res.status, data: res.data };
+    } catch (err) {
+      return { ok: false, status: err.response?.status || 500, error: err.message, data: err.response?.data || null };
+    }
+  };
 
   const fetchOrgAppointments = async () => {
-    const { ok, data } = await safeFetchJson('/appointments', { headers: getAuthHeaders(false) });
+    const { ok, data } = await safeFetchJson('/appointments');
     if (ok && data?.appointments) {
       setAppointments(data.appointments);
     }
   };
 
   const fetchPharmacyInventory = async () => {
-    const { ok, data } = await safeFetchJson('/pharmacy/inventory', { headers: getAuthHeaders(false) });
+    const { ok, data } = await safeFetchJson('/pharmacy/inventory');
     if (ok && data?.items) {
       setInventoryItems(data.items);
     }
   };
 
   const fetchAdminMedicines = async () => {
-    const { ok, data } = await safeFetchJson('/medicines?limit=100', { headers: getAuthHeaders(false) });
+    const { ok, data } = await safeFetchJson('/medicines?limit=100');
     if (ok && Array.isArray(data?.data)) {
       setAdminMedicines(data.data);
       if (data.data.length > 0) {
@@ -154,7 +166,7 @@ const safeFetchJson = async (url, options = {}) => {
   };
 
   const fetchPharmacyOrders = async () => {
-    const { ok, data } = await safeFetchJson('/pharmacy/orders', { headers: getAuthHeaders(false) });
+    const { ok, data } = await safeFetchJson('/pharmacy/orders');
     if (ok && data?.orders) {
       setPharmacyOrders(data.orders);
     }
@@ -174,13 +186,7 @@ const safeFetchJson = async (url, options = {}) => {
     try {
       setError('');
       setSuccessMsg('');
-      const res = await fetch(`/org/approve-doctor/${doctorId}`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(true)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to approve doctor.');
-
+      await apiClient.patch(`/org/approve-doctor/${doctorId}`);
       setSuccessMsg(`Doctor Dr. ${doctorName} approved and affiliated with facility!`);
       fetchPendingDoctors();
     } catch (err) {
@@ -192,13 +198,7 @@ const safeFetchJson = async (url, options = {}) => {
     try {
       setError('');
       setSuccessMsg('');
-      const res = await fetch(`/org/reject-doctor/${doctorId}`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(true)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to reject doctor.');
-
+      await apiClient.patch(`/org/reject-doctor/${doctorId}`);
       setSuccessMsg(`Doctor affiliation request for Dr. ${doctorName} rejected.`);
       fetchPendingDoctors();
     } catch (err) {
@@ -212,19 +212,13 @@ const safeFetchJson = async (url, options = {}) => {
     try {
       setIsSubmitting(true);
       setError('');
-      const res = await fetch('/pharmacy/inventory', {
-        method: 'POST',
-        headers: getAuthHeaders(true),
-        body: JSON.stringify({
-          medicineId: selectedAdminMedId,
-          companyName: companyName.trim() || 'PharmaCorp',
-          price: parseFloat(invPrice) || 0,
-          stock: parseInt(invStock, 10) || 0,
-          isActive: true
-        })
+      await apiClient.post('/pharmacy/inventory', {
+        medicineId: selectedAdminMedId,
+        companyName: companyName.trim() || 'PharmaCorp',
+        price: parseFloat(invPrice) || 0,
+        stock: parseInt(invStock, 10) || 0,
+        isActive: true
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update pharmacy inventory.');
 
       setSuccessMsg('Medicine added to Pharmacy Marketplace Inventory!');
       fetchPharmacyInventory();
@@ -238,14 +232,7 @@ const safeFetchJson = async (url, options = {}) => {
   const handleUpdateOrderStatus = async (orderId, newStatus) => {
     try {
       setError('');
-      const res = await fetch(`/pharmacy/orders/${orderId}/status`, {
-        method: 'PATCH',
-        headers: getAuthHeaders(true),
-        body: JSON.stringify({ status: newStatus })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update order status.');
-
+      await apiClient.patch(`/pharmacy/orders/${orderId}/status`, { status: newStatus });
       setSuccessMsg(`Order #${orderId.slice(-6).toUpperCase()} updated to ${newStatus.toUpperCase()}`);
       fetchPharmacyOrders();
     } catch (err) {
@@ -266,14 +253,7 @@ const safeFetchJson = async (url, options = {}) => {
         organizationCertificateUrl: certUrl
       };
 
-      const res = await fetch('/org/profile', {
-        method: 'PUT',
-        headers: getAuthHeaders(true),
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update organization profile');
-
+      await apiClient.put('/org/profile', payload);
       setSuccessMsg('Organization profile updated successfully!');
       setShowEditModal(false);
       refreshUser();
