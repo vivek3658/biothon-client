@@ -18,6 +18,7 @@ export const Sidebar = ({ role, activeTab, setActiveTab, collapsed, setCollapsed
     { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'medicines', label: 'Medicine Catalog', icon: Pill, badge: 'Catalog' },
     { id: 'managers', label: 'Manage Managers', icon: UserCog, badge: 'CRUD' },
+    { id: 'pending', label: 'Pending Approvals', icon: Clock, badge: 'Action Needed' },
     { id: 'organizations', label: 'All Organizations', icon: Building2 },
     { id: 'audit', label: 'System Audit', icon: ShieldCheck }
   ];
