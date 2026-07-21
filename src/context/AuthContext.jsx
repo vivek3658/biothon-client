@@ -150,8 +150,17 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const { data } = await apiClient.post('/employee-auth', { username, password });
-      if (data.token) localStorage.setItem('token', data.token);
-      await fetchCurrentUser();
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
+      const employeeUser = {
+        id: data.identity?.id || data.id || null,
+        username: username || data.username || 'admin',
+        role: data.role || 'admin',
+        entityModel: 'Employee'
+      };
+      setUser(employeeUser);
+      setUserProfile(null);
       return data;
     } catch (err) {
       throw new Error(err.message || 'Employee login failed. Please check credentials.');

@@ -4,6 +4,7 @@ import { Navbar } from '../components/Navbar';
 import { Sidebar } from '../components/Sidebar';
 import { AdminManagerCrud } from '../components/AdminManagerCrud';
 import { AdminMedicineCrud } from '../components/AdminMedicineCrud';
+import { AdminMedicineCatalogPage } from './AdminMedicineCatalogPage';
 import { ManagerApproval } from '../components/ManagerApproval';
 import { OrganizationList } from '../components/OrganizationList';
 import { UserDashboard } from '../components/UserDashboard';
@@ -233,7 +234,7 @@ export const DashboardPage = () => {
                 </div>
               )}
 
-              {activeTab === 'medicines' && <AdminMedicineCrud />}
+              {activeTab === 'medicines' && <AdminMedicineCatalogPage />}
               {activeTab === 'managers' && user?.role === 'admin' && <AdminManagerCrud />}
               {activeTab === 'pending' && <ManagerApproval />}
               {activeTab === 'organizations' && <OrganizationList />}
