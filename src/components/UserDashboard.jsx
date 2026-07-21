@@ -7,6 +7,10 @@ import 'leaflet/dist/leaflet.css';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../api/axios';
 import { PrescriptionPage } from '../pages/PrescriptionPage';
+import { AppointmentCard } from './appointment/AppointmentCard';
+import { SlotGeneratorModal } from './appointment/SlotGeneratorModal';
+import { QRScannerModal } from './appointment/QRScannerModal';
+import { QRViewerModal } from './appointment/QRViewerModal';
 import { 
   User, 
   Heart, 
@@ -218,6 +222,8 @@ export const UserDashboard = () => {
   const [appointmentSearchQuery, setAppointmentSearchQuery] = useState('');
   const [appointmentStatusFilter, setAppointmentStatusFilter] = useState('all');
   const [isBookingSlot, setIsBookingSlot] = useState(false);
+  const [selectedTicketApt, setSelectedTicketApt] = useState(null);
+  const [showSlotGenModal, setShowSlotGenModal] = useState(false);
 
   // Medicine Marketplace & Cart State
   const [marketplaceItems, setMarketplaceItems] = useState([]);
@@ -1961,17 +1967,32 @@ export const UserDashboard = () => {
               </div>
             </div>
 
-            {/* DOCTOR CREATE SLOT PUBLISHER */}
+            {/* DOCTOR CREATE SLOT PUBLISHER & BULK GENERATOR */}
             {activeMode === 'doctor' && (
-              <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '12px', padding: '18px', marginBottom: '24px' }}>
-                <h4 style={{ fontSize: '1rem', fontWeight: 800, color: '#047857', marginBottom: '12px' }}>Publish New Consultation Slot</h4>
-                <form onSubmit={handleCreateDoctorSlot} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+              <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '16px', padding: '20px', marginBottom: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+                  <div>
+                    <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#047857' }}>Doctor Consultation Slot Manager</h4>
+                    <p style={{ fontSize: '0.8rem', color: '#065f46' }}>Publish single slots or use the bulk generator engine</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowSlotGenModal(true)}
+                    className="btn-success"
+                    style={{ padding: '8px 16px', fontSize: '0.84rem' }}
+                  >
+                    <Plus size={16} />
+                    <span>Open Bulk Slot Generator</span>
+                  </button>
+                </div>
+
+                <form onSubmit={handleCreateDoctorSlot} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
                   <input type="text" className="form-input" placeholder="Slot Title" value={docSlotTitle} onChange={(e) => setDocSlotTitle(e.target.value)} required />
                   <input type="date" className="form-input" value={docSlotDate} onChange={(e) => setDocSlotDate(e.target.value)} required />
                   <input type="time" className="form-input" value={docStartTime} onChange={(e) => setDocStartTime(e.target.value)} required />
                   <input type="time" className="form-input" value={docEndTime} onChange={(e) => setDocEndTime(e.target.value)} required />
                   <input type="number" className="form-input" placeholder="Fee (₹)" value={docFee} onChange={(e) => setDocFee(e.target.value)} required />
-                  <button type="submit" className="btn-success" disabled={isSubmitting} style={{ padding: '8px 16px' }}>
+                  <button type="submit" className="btn-primary" disabled={isSubmitting} style={{ padding: '8px 16px' }}>
                     {isSubmitting ? 'Publishing...' : 'Publish Slot'}
                   </button>
                 </form>
@@ -2015,31 +2036,46 @@ export const UserDashboard = () => {
               </div>
             )}
 
-            {/* BOOKED APPOINTMENTS HISTORY */}
+            {/* BOOKED APPOINTMENTS LIST WITH APPOINTMENTCARD */}
             <div>
-              <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', marginBottom: '12px' }}>
-                Booked Appointments ({filteredAppointments.length})
+              <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', marginBottom: '14px' }}>
+                Appointments Stream ({filteredAppointments.length})
               </h4>
 
               {filteredAppointments.length === 0 ? (
                 <p style={{ fontSize: '0.85rem', color: '#64748b' }}>No appointment records found matching filter.</p>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   {filteredAppointments.map(app => (
-                    <div key={app._id} className="white-card" style={{ padding: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-                      <div>
-                        <strong style={{ fontSize: '0.95rem', color: '#0f172a' }}>
-                          {app.doctorId?.name ? `Dr. ${app.doctorId.name}` : app.organizationId?.name || 'Healthcare Facility'}
-                        </strong>
-                        <p style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '2px' }}>
-                          Patient: {app.patientId?.name || 'User'} • Slot: {app.slotId?.slotDate || ''} ({app.slotId?.startTime || ''})
-                        </p>
-                      </div>
-
-                      <span className={`badge ${app.status === 'completed' ? 'badge-approved' : app.status === 'rejected' ? 'badge-rejected' : 'badge-pending'}`}>
-                        {(app.status || 'appointed').toUpperCase()}
-                      </span>
-                    </div>
+                    <AppointmentCard
+                      key={app._id}
+                      appointment={app}
+                      userRole={activeMode === 'doctor' ? 'doctor' : 'patient'}
+                      onViewQR={(apt) => setSelectedTicketApt(apt)}
+                      onStartConsultation={async (apt) => {
+                        try {
+                          await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'in_consultation' });
+                          fetchAppointmentsAndSlots();
+                        } catch (e) {
+                          alert(e.message);
+                        }
+                      }}
+                      onComplete={async (apt) => {
+                        try {
+                          await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'completed' });
+                          fetchAppointmentsAndSlots();
+                          setCreateRxWorkspace({
+                            patient: {
+                              id: apt.patientId?._id || apt.patientId,
+                              name: apt.patientId?.name || 'Patient',
+                              bloodGroup: apt.patientId?.bloodGroup || 'A+'
+                            }
+                          });
+                        } catch (e) {
+                          alert(e.message);
+                        }
+                      }}
+                    />
                   ))}
                 </div>
               )}
@@ -2505,6 +2541,25 @@ export const UserDashboard = () => {
             )}
           </div>
         </div>
+      )}
+      {/* BULK SLOT GENERATOR MODAL FOR DOCTORS */}
+      {showSlotGenModal && (
+        <SlotGeneratorModal
+          isOpen={showSlotGenModal}
+          onClose={() => setShowSlotGenModal(false)}
+          onGenerated={() => {
+            fetchAppointmentsAndSlots();
+            setShowSlotGenModal(false);
+          }}
+        />
+      )}
+
+      {/* TICKET QR VIEWER MODAL */}
+      {selectedTicketApt && (
+        <QRViewerModal
+          appointment={selectedTicketApt}
+          onClose={() => setSelectedTicketApt(null)}
+        />
       )}
     </div>
   );

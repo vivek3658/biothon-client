@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../api/axios';
+import { AppointmentCard } from './appointment/AppointmentCard';
+import { SlotGeneratorModal } from './appointment/SlotGeneratorModal';
+import { QRScannerModal } from './appointment/QRScannerModal';
+import { QRViewerModal } from './appointment/QRViewerModal';
 import { 
   Building2, 
   MapPin, 
@@ -73,6 +76,9 @@ export const OrgDashboard = () => {
 
   // Pharmacy Orders State
   const [pharmacyOrders, setPharmacyOrders] = useState([]);
+  const [showSlotGenModal, setShowSlotGenModal] = useState(false);
+  const [showQRScanModal, setShowQRScanModal] = useState(false);
+  const [selectedTicketApt, setSelectedTicketApt] = useState(null);
 
   // Edit Org Profile Modal
   const [showEditModal, setShowEditModal] = useState(false);
@@ -384,29 +390,74 @@ export const OrgDashboard = () => {
         {/* TAB 2: APPOINTMENTS MANAGER */}
         {activeTab === 'appointments' && (
           <div className="white-panel" style={{ padding: '24px' }}>
-            <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '16px' }}>
-              Facility Consultations & Appointments ({appointments.length})
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                  Facility Consultations & Appointments ({appointments.length})
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  Generate bulk availability slots, scan patient check-in QR tickets, and track consultations.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowQRScanModal(true)}
+                  className="btn-primary"
+                  style={{ padding: '8px 16px', fontSize: '0.84rem' }}
+                >
+                  <QrCode size={16} />
+                  <span>QR Check-In Scanner</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowSlotGenModal(true)}
+                  className="btn-success"
+                  style={{ padding: '8px 16px', fontSize: '0.84rem' }}
+                >
+                  <Plus size={16} />
+                  <span>Bulk Slot Generator</span>
+                </button>
+              </div>
+            </div>
 
             {appointments.length === 0 ? (
               <p style={{ fontSize: '0.85rem', color: '#64748b' }}>No appointments booked at this facility yet.</p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {appointments.map(app => (
-                  <div key={app._id} className="white-card" style={{ padding: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-                    <div>
-                      <strong style={{ fontSize: '0.95rem', color: '#0f172a' }}>
-                        Patient: {app.patientId?.name || 'Verified Patient'}
-                      </strong>
-                      <p style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '2px' }}>
-                        Doctor: {app.doctorId?.name ? `Dr. ${app.doctorId.name}` : 'Facility Practitioner'} • Date: {app.slotId?.slotDate || ''} ({app.slotId?.startTime || ''})
-                      </p>
-                    </div>
-
-                    <span className={`badge ${app.status === 'completed' ? 'badge-approved' : 'badge-pending'}`}>
-                      {(app.status || 'appointed').toUpperCase()}
-                    </span>
-                  </div>
+                  <AppointmentCard
+                    key={app._id}
+                    appointment={app}
+                    userRole="receptionist"
+                    onViewQR={(apt) => setSelectedTicketApt(apt)}
+                    onCheckIn={async (apt) => {
+                      try {
+                        await apiClient.post('/appointments/check-in', { qrCodeToken: apt.qrCodeToken });
+                        fetchOrgAppointments();
+                      } catch (e) {
+                        alert(e.message);
+                      }
+                    }}
+                    onStartConsultation={async (apt) => {
+                      try {
+                        await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'in_consultation' });
+                        fetchOrgAppointments();
+                      } catch (e) {
+                        alert(e.message);
+                      }
+                    }}
+                    onComplete={async (apt) => {
+                      try {
+                        await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'completed' });
+                        fetchOrgAppointments();
+                      } catch (e) {
+                        alert(e.message);
+                      }
+                    }}
+                  />
                 ))}
               </div>
             )}
@@ -675,6 +726,38 @@ export const OrgDashboard = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* BULK SLOT GENERATOR MODAL */}
+      {showSlotGenModal && (
+        <SlotGeneratorModal
+          isOpen={showSlotGenModal}
+          onClose={() => setShowSlotGenModal(false)}
+          onGenerated={() => {
+            fetchOrgAppointments();
+            setShowSlotGenModal(false);
+          }}
+        />
+      )}
+
+      {/* RECEPTION / STAFF QR CHECK-IN SCANNER MODAL */}
+      {showQRScanModal && (
+        <QRScannerModal
+          isOpen={showQRScanModal}
+          onClose={() => setShowQRScanModal(false)}
+          onCheckInSuccess={() => {
+            fetchOrgAppointments();
+            setShowQRScanModal(false);
+          }}
+        />
+      )}
+
+      {/* TICKET QR VIEWER MODAL */}
+      {selectedTicketApt && (
+        <QRViewerModal
+          appointment={selectedTicketApt}
+          onClose={() => setSelectedTicketApt(null)}
+        />
       )}
     </div>
   );
