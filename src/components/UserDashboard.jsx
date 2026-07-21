@@ -1001,18 +1001,20 @@ export const UserDashboard = () => {
   };
 
   const handleDeletePrescription = async (id) => {
-    if (!window.confirm('Delete this prescription record?')) return;
+    if (!window.confirm('Are you sure you want to permanently delete this prescription record?')) return;
     try {
-      const res = await fetch(`/prescriptions/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(false)
+      setIsSubmitting(true);
+      setError('');
+      const { ok, error: errStr } = await safeFetchJson(`/prescriptions/${id}`, {
+        method: 'DELETE'
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete prescription');
-      setSuccessMsg('Prescription deleted.');
+      if (!ok) throw new Error(errStr || 'Failed to delete prescription');
+      setSuccessMsg('Prescription deleted successfully.');
       fetchPrescriptions();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
