@@ -5,6 +5,7 @@ import { SlotGeneratorModal } from './appointment/SlotGeneratorModal';
 import { QRScannerModal } from './appointment/QRScannerModal';
 import { QRViewerModal } from './appointment/QRViewerModal';
 import { EditAppointmentModal } from './appointment/EditAppointmentModal';
+import { ActionConfirmationModal } from './appointment/ActionConfirmationModal';
 import { 
   Building2, 
   MapPin, 
@@ -81,6 +82,7 @@ export const OrgDashboard = () => {
   const [showQRScanModal, setShowQRScanModal] = useState(false);
   const [selectedTicketApt, setSelectedTicketApt] = useState(null);
   const [editingAppointment, setEditingAppointment] = useState(null);
+  const [confirmModalConfig, setConfirmModalConfig] = useState(null);
 
   // Edit Org Profile Modal
   const [showEditModal, setShowEditModal] = useState(false);
@@ -435,29 +437,40 @@ export const OrgDashboard = () => {
                     appointment={app}
                     userRole="receptionist"
                     onViewQR={(apt) => setSelectedTicketApt(apt)}
-                    onApprove={async (apt) => {
-                      try {
-                        await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'approved' });
-                        fetchOrgAppointments();
-                      } catch (e) {
-                        alert(e.message);
-                      }
+                    onApprove={(apt) => {
+                      setConfirmModalConfig({
+                        isOpen: true,
+                        title: 'Approve Appointment Request',
+                        message: `Confirm appointment for patient ${apt.patientId?.name || 'User'}?`,
+                        actionType: 'approve',
+                        requireReason: false,
+                        onConfirm: async () => {
+                          await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'approved' });
+                          fetchOrgAppointments();
+                          setSuccessMsg(`Appointment for ${apt.patientId?.name || 'Patient'} approved!`);
+                        }
+                      });
                     }}
-                    onReject={async (apt) => {
-                      const reason = prompt('Enter rejection reason:') || 'Rejected by facility';
-                      try {
-                        await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'rejected', rejectionReason: reason });
-                        fetchOrgAppointments();
-                      } catch (e) {
-                        alert(e.message);
-                      }
+                    onReject={(apt) => {
+                      setConfirmModalConfig({
+                        isOpen: true,
+                        title: 'Reject Appointment Request',
+                        message: `Specify reason for rejecting appointment #${apt.tokenNumber || 1}:`,
+                        actionType: 'reject',
+                        requireReason: true,
+                        onConfirm: async (reason) => {
+                          await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'rejected', rejectionReason: reason || 'Rejected by facility' });
+                          fetchOrgAppointments();
+                          setSuccessMsg(`Appointment rejected.`);
+                        }
+                      });
                     }}
                     onCheckIn={async (apt) => {
                       try {
                         await apiClient.post('/appointments/check-in', { qrCodeToken: apt.qrCodeToken });
                         fetchOrgAppointments();
                       } catch (e) {
-                        alert(e.message);
+                        setError(e.message);
                       }
                     }}
                     onStartConsultation={async (apt) => {
@@ -465,7 +478,7 @@ export const OrgDashboard = () => {
                         await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'in_consultation' });
                         fetchOrgAppointments();
                       } catch (e) {
-                        alert(e.message);
+                        setError(e.message);
                       }
                     }}
                     onComplete={async (apt) => {
@@ -473,19 +486,23 @@ export const OrgDashboard = () => {
                         await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'completed' });
                         fetchOrgAppointments();
                       } catch (e) {
-                        alert(e.message);
+                        setError(e.message);
                       }
                     }}
                     onEdit={(apt) => setEditingAppointment(apt)}
-                    onDelete={async (apt) => {
-                      if (window.confirm(`Delete appointment #${apt.tokenNumber || 1}?`)) {
-                        try {
+                    onDelete={(apt) => {
+                      setConfirmModalConfig({
+                        isOpen: true,
+                        title: 'Delete Appointment Record',
+                        message: `Are you sure you want to delete appointment #${apt.tokenNumber || 1}?`,
+                        actionType: 'delete',
+                        requireReason: false,
+                        onConfirm: async () => {
                           await apiClient.delete(`/appointments/${apt._id}`);
                           fetchOrgAppointments();
-                        } catch (e) {
-                          alert(e.message);
+                          setSuccessMsg(`Appointment deleted.`);
                         }
-                      }
+                      });
                     }}
                   />
                 ))}
@@ -798,6 +815,19 @@ export const OrgDashboard = () => {
             fetchOrgAppointments();
             setEditingAppointment(null);
           }}
+        />
+      )}
+
+      {/* ACTION CONFIRMATION POPUP MODAL */}
+      {confirmModalConfig && (
+        <ActionConfirmationModal
+          isOpen={confirmModalConfig.isOpen}
+          onClose={() => setConfirmModalConfig(null)}
+          onConfirm={confirmModalConfig.onConfirm}
+          title={confirmModalConfig.title}
+          message={confirmModalConfig.message}
+          actionType={confirmModalConfig.actionType}
+          requireReason={confirmModalConfig.requireReason}
         />
       )}
     </div>

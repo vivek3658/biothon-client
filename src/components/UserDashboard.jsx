@@ -12,6 +12,7 @@ import { SlotGeneratorModal } from './appointment/SlotGeneratorModal';
 import { QRScannerModal } from './appointment/QRScannerModal';
 import { QRViewerModal } from './appointment/QRViewerModal';
 import { EditAppointmentModal } from './appointment/EditAppointmentModal';
+import { ActionConfirmationModal } from './appointment/ActionConfirmationModal';
 import { 
   User, 
   Heart, 
@@ -226,6 +227,8 @@ export const UserDashboard = () => {
   const [selectedTicketApt, setSelectedTicketApt] = useState(null);
   const [showSlotGenModal, setShowSlotGenModal] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState(null);
+  const [confirmModalConfig, setConfirmModalConfig] = useState(null);
+  const [showAllSlotHistory, setShowAllSlotHistory] = useState(false);
 
   // Medicine Marketplace & Cart State
   const [marketplaceItems, setMarketplaceItems] = useState([]);
@@ -1144,6 +1147,31 @@ export const UserDashboard = () => {
     });
   }, [appointments, appointmentSearchQuery, appointmentStatusFilter]);
 
+  // Group Filtered Appointments by Slot / Date Key for clean slot-wise history
+  const groupedSlotAppointments = React.useMemo(() => {
+    const map = new Map();
+    filteredAppointments.forEach(app => {
+      const slotKey = app.slotId?._id || app.appointmentDate || 'General Slots';
+      const slotTitle = app.slotId?.title || `Slot: ${app.appointmentDate} (${app.appointmentTime || 'Scheduled'})`;
+      const slotDate = app.appointmentDate || app.slotId?.slotDate || 'Today';
+      const slotTime = app.appointmentTime || app.slotId?.startTime || '';
+      
+      if (!map.has(slotKey)) {
+        map.set(slotKey, {
+          slotKey,
+          slotTitle,
+          slotDate,
+          slotTime,
+          consultationMode: app.slotId?.consultationMode || 'in_person',
+          fee: app.slotId?.fee || 0,
+          appointments: []
+        });
+      }
+      map.get(slotKey).appointments.push(app);
+    });
+    return Array.from(map.values());
+  }, [filteredAppointments]);
+
   // Filtered Marketplace Items
   const filteredMarketplaceItems = React.useMemo(() => {
     return marketplaceItems.filter(item => {
@@ -2045,108 +2073,165 @@ export const UserDashboard = () => {
               </div>
             )}
 
-            {/* BOOKED APPOINTMENTS LIST WITH CATEGORIZED SUB-TABS */}
+            {/* BOOKED APPOINTMENTS LIST WITH SLOT-WISE GROUPED VIEW */}
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-                <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                  Appointments Stream ({filteredAppointments.length})
-                </h4>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                    Slot-Wise Appointments ({filteredAppointments.length} Bookings across {groupedSlotAppointments.length} Slots)
+                  </h4>
+                  <p style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                    Showing {(!showAllSlotHistory && !appointmentSearchQuery.trim() && appointmentStatusFilter === 'all') ? 'Most Recent 5 Slots' : `All ${groupedSlotAppointments.length} Slots`}
+                  </p>
+                </div>
 
-                <div style={{ display: 'flex', gap: '6px', background: '#f1f5f9', padding: '4px', borderRadius: '12px' }}>
-                  {[
-                    { id: 'all', label: 'All' },
-                    { id: 'active', label: 'Active & Upcoming' },
-                    { id: 'completed', label: 'Completed' },
-                    { id: 'cancelled', label: 'Cancelled & Rejected' }
-                  ].map(tab => (
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', padding: '4px', borderRadius: '12px' }}>
+                    {[
+                      { id: 'all', label: 'All' },
+                      { id: 'active', label: 'Active & Upcoming' },
+                      { id: 'completed', label: 'Completed' },
+                      { id: 'cancelled', label: 'Cancelled / Rejected' }
+                    ].map(tab => (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setAppointmentStatusFilter(tab.id)}
+                        style={{
+                          padding: '5px 12px',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          borderRadius: '8px',
+                          border: 'none',
+                          cursor: 'pointer',
+                          background: appointmentStatusFilter === tab.id ? '#ffffff' : 'transparent',
+                          color: appointmentStatusFilter === tab.id ? '#0284c7' : '#64748b',
+                          boxShadow: appointmentStatusFilter === tab.id ? '0 2px 4px rgba(0,0,0,0.06)' : 'none'
+                        }}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {groupedSlotAppointments.length > 5 && !appointmentSearchQuery.trim() && appointmentStatusFilter === 'all' && (
                     <button
-                      key={tab.id}
                       type="button"
-                      onClick={() => setAppointmentStatusFilter(tab.id)}
-                      style={{
-                        padding: '5px 12px',
-                        fontSize: '0.78rem',
-                        fontWeight: 700,
-                        borderRadius: '8px',
-                        border: 'none',
-                        cursor: 'pointer',
-                        background: appointmentStatusFilter === tab.id ? '#ffffff' : 'transparent',
-                        color: appointmentStatusFilter === tab.id ? '#0284c7' : '#64748b',
-                        boxShadow: appointmentStatusFilter === tab.id ? '0 2px 4px rgba(0,0,0,0.06)' : 'none'
-                      }}
+                      onClick={() => setShowAllSlotHistory(prev => !prev)}
+                      className="btn-secondary"
+                      style={{ padding: '6px 12px', fontSize: '0.78rem' }}
                     >
-                      {tab.label}
+                      {showAllSlotHistory ? 'Show Recent 5 Slots Only' : `View All (${groupedSlotAppointments.length} Slots)`}
                     </button>
-                  ))}
+                  )}
                 </div>
               </div>
 
-              {filteredAppointments.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '36px', background: '#f8fafc', borderRadius: '16px', border: '1px border-slate-200' }}>
+              {groupedSlotAppointments.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '36px', background: '#f8fafc', borderRadius: '20px', border: '1px solid #e2e8f0' }}>
                   <p style={{ fontSize: '0.88rem', color: '#64748b', fontWeight: 600 }}>
                     No appointment records found under the "{appointmentStatusFilter}" category.
                   </p>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  {filteredAppointments.map(app => (
-                    <AppointmentCard
-                      key={app._id}
-                      appointment={app}
-                      userRole={activeMode === 'doctor' ? 'doctor' : 'patient'}
-                      onViewQR={(apt) => setSelectedTicketApt(apt)}
-                      onApprove={async (apt) => {
-                        try {
-                          await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'approved' });
-                          fetchAppointmentsAndSlots();
-                        } catch (e) {
-                          alert(e.message);
-                        }
-                      }}
-                      onReject={async (apt) => {
-                        const reason = prompt('Enter rejection reason:') || 'Rejected by practitioner';
-                        try {
-                          await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'rejected', rejectionReason: reason });
-                          fetchAppointmentsAndSlots();
-                        } catch (e) {
-                          alert(e.message);
-                        }
-                      }}
-                      onStartConsultation={async (apt) => {
-                        try {
-                          await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'in_consultation' });
-                          fetchAppointmentsAndSlots();
-                        } catch (e) {
-                          alert(e.message);
-                        }
-                      }}
-                      onComplete={async (apt) => {
-                        try {
-                          await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'completed' });
-                          fetchAppointmentsAndSlots();
-                          setCreateRxWorkspace({
-                            patient: {
-                              id: apt.patientId?._id || apt.patientId,
-                              name: apt.patientId?.name || 'Patient',
-                              bloodGroup: apt.patientId?.bloodGroup || 'A+'
-                            }
-                          });
-                        } catch (e) {
-                          alert(e.message);
-                        }
-                      }}
-                      onEdit={(apt) => setEditingAppointment(apt)}
-                      onDelete={async (apt) => {
-                        if (window.confirm(`Are you sure you want to delete appointment #${apt.tokenNumber || 1}?`)) {
-                          try {
-                            await apiClient.delete(`/appointments/${apt._id}`);
-                            fetchAppointmentsAndSlots();
-                          } catch (e) {
-                            alert(e.message);
-                          }
-                        }
-                      }}
-                    />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {(showAllSlotHistory || appointmentSearchQuery.trim() || appointmentStatusFilter !== 'all'
+                    ? groupedSlotAppointments
+                    : groupedSlotAppointments.slice(0, 5)
+                  ).map(slotGroup => (
+                    <div key={slotGroup.slotKey} className="white-panel" style={{ padding: '20px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '22px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px', borderBottom: '1px solid #cbd5e1', paddingBottom: '10px' }}>
+                        <div>
+                          <h5 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>
+                            {slotGroup.slotTitle}
+                          </h5>
+                          <p style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                            📅 {slotGroup.slotDate} • Fee: ₹{slotGroup.fee} • Mode: <span style={{ textTransform: 'capitalize', fontWeight: 700 }}>{slotGroup.consultationMode}</span>
+                          </p>
+                        </div>
+
+                        <span className="badge badge-approved" style={{ fontSize: '0.78rem' }}>
+                          {slotGroup.appointments.length} Booked Patients
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {slotGroup.appointments.map(app => (
+                          <AppointmentCard
+                            key={app._id}
+                            appointment={app}
+                            userRole={activeMode === 'doctor' ? 'doctor' : 'patient'}
+                            onViewQR={(apt) => setSelectedTicketApt(apt)}
+                            onApprove={(apt) => {
+                              setConfirmModalConfig({
+                                isOpen: true,
+                                title: 'Approve Appointment Request',
+                                message: `Confirm appointment for patient ${apt.patientId?.name || 'User'}?`,
+                                actionType: 'approve',
+                                requireReason: false,
+                                onConfirm: async () => {
+                                  await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'approved' });
+                                  fetchAppointmentsAndSlots();
+                                  setSuccessMsg(`Appointment for ${apt.patientId?.name || 'Patient'} approved!`);
+                                }
+                              });
+                            }}
+                            onReject={(apt) => {
+                              setConfirmModalConfig({
+                                isOpen: true,
+                                title: 'Reject Appointment Request',
+                                message: `Specify reason for rejecting appointment #${apt.tokenNumber || 1}:`,
+                                actionType: 'reject',
+                                requireReason: true,
+                                onConfirm: async (reason) => {
+                                  await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'rejected', rejectionReason: reason || 'Rejected by practitioner' });
+                                  fetchAppointmentsAndSlots();
+                                  setSuccessMsg(`Appointment rejected.`);
+                                }
+                              });
+                            }}
+                            onStartConsultation={async (apt) => {
+                              try {
+                                await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'in_consultation' });
+                                fetchAppointmentsAndSlots();
+                              } catch (e) {
+                                setError(e.message);
+                              }
+                            }}
+                            onComplete={async (apt) => {
+                              try {
+                                await apiClient.patch(`/appointments/${apt._id}/status`, { status: 'completed' });
+                                fetchAppointmentsAndSlots();
+                                setCreateRxWorkspace({
+                                  patient: {
+                                    id: apt.patientId?._id || apt.patientId,
+                                    name: apt.patientId?.name || 'Patient',
+                                    bloodGroup: apt.patientId?.bloodGroup || 'A+'
+                                  }
+                                });
+                              } catch (e) {
+                                setError(e.message);
+                              }
+                            }}
+                            onEdit={(apt) => setEditingAppointment(apt)}
+                            onDelete={(apt) => {
+                              setConfirmModalConfig({
+                                isOpen: true,
+                                title: 'Delete Appointment Record',
+                                message: `Are you sure you want to permanently delete appointment #${apt.tokenNumber || 1}?`,
+                                actionType: 'delete',
+                                requireReason: false,
+                                onConfirm: async () => {
+                                  await apiClient.delete(`/appointments/${apt._id}`);
+                                  fetchAppointmentsAndSlots();
+                                  setSuccessMsg(`Appointment deleted successfully.`);
+                                }
+                              });
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
@@ -2641,6 +2726,19 @@ export const UserDashboard = () => {
             fetchAppointmentsAndSlots();
             setEditingAppointment(null);
           }}
+        />
+      )}
+
+      {/* ACTION CONFIRMATION POPUP MODAL */}
+      {confirmModalConfig && (
+        <ActionConfirmationModal
+          isOpen={confirmModalConfig.isOpen}
+          onClose={() => setConfirmModalConfig(null)}
+          onConfirm={confirmModalConfig.onConfirm}
+          title={confirmModalConfig.title}
+          message={confirmModalConfig.message}
+          actionType={confirmModalConfig.actionType}
+          requireReason={confirmModalConfig.requireReason}
         />
       )}
     </div>
