@@ -67,17 +67,20 @@ export const AuthProvider = ({ children }) => {
         } catch (e) {}
       }
 
-      // 3. Check User Auth (Patient / Doctor)
+      // 3. Check User Auth (Patient / Doctor / Auto-route Org)
       try {
         const { data } = await apiClient.get('/user/me');
-        if (data?.account && data.account.entityModel === 'User') {
+        if (data?.account) {
+          const userRoleLower = (data.account.role || '').toLowerCase();
+          const isOrgRole = ['hospital', 'clinic', 'laboratory', 'pharmacy', 'organization', 'org', 'facility'].includes(userRoleLower);
+
           setUser({
             id: data.account._id,
             username: data.userProfile?.name || data.account.email,
-            role: data.account.role,
-            entityModel: 'User'
+            role: data.account.role || 'hospital',
+            entityModel: isOrgRole ? 'Organization' : (data.account.entityModel || 'User')
           });
-          setUserProfile(data.userProfile);
+          setUserProfile(data.userProfile || {});
           setLoading(false);
           return;
         }
