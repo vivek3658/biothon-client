@@ -16,8 +16,8 @@ export const InputField = ({
   return (
     <div className={`flex flex-col gap-2 ${className}`}>
       {label && (
-        <label className="text-sm font-bold text-slate-800 tracking-wide flex items-center gap-1">
-          {label} {required && <span className="text-rose-500 font-bold">*</span>}
+        <label className="text-xs font-black text-slate-800 uppercase tracking-wider block">
+          {label} {required && <span className="text-rose-500 font-black">*</span>}
         </label>
       )}
       <input
@@ -26,7 +26,7 @@ export const InputField = ({
         placeholder={placeholder}
         {...register(name)}
         {...props}
-        className={`w-full px-4 py-3.5 bg-white border rounded-2xl text-base font-medium text-slate-900 placeholder:text-slate-400 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-sky-500/15 ${
+        className={`w-full px-5 py-4 bg-slate-50/70 hover:bg-white focus:bg-white border rounded-[5px] text-base font-semibold text-slate-900 placeholder:text-slate-400 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-sky-500/15 ${
           error 
             ? 'border-rose-300 focus:border-rose-500 bg-rose-50/20' 
             : 'border-slate-200/90 focus:border-sky-500 hover:border-slate-300'
@@ -55,14 +55,14 @@ export const SelectField = ({
   return (
     <div className={`flex flex-col gap-2 ${className}`}>
       {label && (
-        <label className="text-sm font-bold text-slate-800 tracking-wide flex items-center gap-1">
-          {label} {required && <span className="text-rose-500 font-bold">*</span>}
+        <label className="text-xs font-black text-slate-800 uppercase tracking-wider block">
+          {label} {required && <span className="text-rose-500 font-black">*</span>}
         </label>
       )}
       <select
         {...register(name)}
         {...props}
-        className={`w-full px-4 py-3.5 bg-white border rounded-2xl text-base font-medium text-slate-900 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-sky-500/15 ${
+        className={`w-full px-5 py-4 bg-slate-50/70 hover:bg-white focus:bg-white border rounded-[5px] text-base font-semibold text-slate-900 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-sky-500/15 ${
           error 
             ? 'border-rose-300 focus:border-rose-500 bg-rose-50/20' 
             : 'border-slate-200/90 focus:border-sky-500 hover:border-slate-300'
@@ -102,8 +102,8 @@ export const TextAreaField = ({
   return (
     <div className={`flex flex-col gap-2 ${className}`}>
       {label && (
-        <label className="text-sm font-bold text-slate-800 tracking-wide flex items-center gap-1">
-          {label} {required && <span className="text-rose-500 font-bold">*</span>}
+        <label className="text-xs font-black text-slate-800 uppercase tracking-wider block">
+          {label} {required && <span className="text-rose-500 font-black">*</span>}
         </label>
       )}
       <textarea
@@ -111,7 +111,7 @@ export const TextAreaField = ({
         placeholder={placeholder}
         {...register(name)}
         {...props}
-        className={`w-full px-4 py-3.5 bg-white border rounded-2xl text-base font-medium text-slate-900 placeholder:text-slate-400 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-sky-500/15 ${
+        className={`w-full px-5 py-4 bg-slate-50/70 hover:bg-white focus:bg-white border rounded-[5px] text-base font-semibold text-slate-900 placeholder:text-slate-400 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-sky-500/15 ${
           error 
             ? 'border-rose-300 focus:border-rose-500 bg-rose-50/20' 
             : 'border-slate-200/90 focus:border-sky-500 hover:border-slate-300'
@@ -136,13 +136,13 @@ export const CheckboxField = ({
 }) => {
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
-      <label className="flex items-start gap-3.5 p-4 bg-sky-50/60 border border-sky-200/70 rounded-2xl cursor-pointer hover:bg-sky-50 transition-colors">
+      <label className="flex items-start gap-3.5 p-5 bg-sky-50/60 border border-sky-200/70 rounded-[5px] cursor-pointer hover:bg-sky-50 transition-colors">
         <input
           type="checkbox"
           {...register(name)}
-          className="mt-1 w-5 h-5 text-sky-600 border-slate-300 rounded-md focus:ring-sky-500 cursor-pointer"
+          className="mt-1 w-5 h-5 text-sky-600 border-slate-300 rounded-[3px] focus:ring-sky-500 cursor-pointer"
         />
-        <span className="text-sm font-semibold text-slate-800 leading-relaxed">
+        <span className="text-sm font-bold text-slate-800 leading-relaxed">
           {label}
         </span>
       </label>
@@ -186,18 +186,18 @@ export const GPSLocationField = ({ setValue, register, errors }) => {
   };
 
   return (
-    <div className="p-4 bg-slate-50 border border-slate-200/90 rounded-2xl flex flex-col gap-3">
+    <div className="p-5 bg-slate-50 border border-slate-200/90 rounded-[5px] flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-bold text-slate-800 tracking-wide">
+        <span className="text-xs font-black text-slate-800 uppercase tracking-wider">
           GPS Location Coordinates
         </span>
         <button
           type="button"
           onClick={handleFetchGPS}
           disabled={isLocating}
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white border border-sky-300 text-sky-700 hover:bg-sky-50 rounded-xl text-xs font-extrabold transition-all shadow-sm disabled:opacity-50"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-sky-300 text-sky-700 hover:bg-sky-50 rounded-[5px] text-xs font-black transition-all shadow-xs disabled:opacity-50"
         >
-          <Navigation className="w-3.5 h-3.5 text-sky-600" />
+          <Navigation className="w-4 h-4 text-sky-600" />
           {isLocating ? 'Locating...' : 'Use Current GPS'}
         </button>
       </div>
@@ -220,7 +220,7 @@ export const GPSLocationField = ({ setValue, register, errors }) => {
       </div>
 
       {locMsg && (
-        <span className={`text-xs font-semibold ${locMsg.includes('retrieved') ? 'text-emerald-600' : 'text-amber-600'}`}>
+        <span className={`text-xs font-bold ${locMsg.includes('retrieved') ? 'text-emerald-600' : 'text-amber-600'}`}>
           {locMsg}
         </span>
       )}

@@ -48,21 +48,25 @@ const roles = [
 
 export const RoleSelector = ({ selectedRole, onSelectRole, onProceed }) => {
   return (
-    <div className="w-full max-w-6xl mx-auto p-8 sm:p-10 md:p-14 bg-white/95 backdrop-blur-xl rounded-3xl border border-slate-200/90 shadow-2xl space-y-8">
-      <div className="text-center space-y-3">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-sky-100/90 text-sky-800 text-xs font-black uppercase tracking-wider border border-sky-200">
-          <ShieldCheck className="w-4 h-4 text-sky-600" aria-hidden="true" /> Healthcare Entity Selection
+    <div className="w-full max-w-7xl mx-auto p-10 sm:p-14 md:p-16 bg-white/95 backdrop-blur-2xl rounded-[5px] border border-slate-200/90 shadow-2xl shadow-sky-500/10 space-y-10 transition-all">
+      {/* Title Section */}
+      <div className="text-center space-y-3.5">
+        <div className="inline-flex items-center gap-2 px-5 py-2 rounded-[5px] bg-gradient-to-r from-sky-50 to-blue-50 text-sky-800 text-xs font-black uppercase tracking-wider border border-sky-200 shadow-xs mx-auto">
+          <ShieldCheck className="w-4.5 h-4.5 text-sky-600" aria-hidden="true" />
+          <span>Step 1: Healthcare Entity Selection</span>
         </div>
-        <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-          Select Your Account Role
+        
+        <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight">
+          Select Your Healthcare Role
         </h2>
-        <p className="text-base font-semibold text-slate-600 max-w-2xl mx-auto leading-relaxed">
-          Choose the healthcare entity you wish to register. Your multi-step registration wizard will be customized for your entity.
+        
+        <p className="text-base sm:text-lg font-semibold text-slate-500 max-w-3xl mx-auto leading-relaxed">
+          Choose your entity type to customize your multi-step registration wizard & verification workflow.
         </p>
       </div>
 
       {/* Role Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-6">
         {roles.map((role) => {
           const Icon = role.icon;
           const isSelected = selectedRole === role.id;
@@ -72,28 +76,29 @@ export const RoleSelector = ({ selectedRole, onSelectRole, onProceed }) => {
               key={role.id}
               type="button"
               onClick={() => onSelectRole(role.id)}
-              className={`flex flex-col items-center text-center p-6 rounded-2xl border-2 transition-all duration-300 relative group cursor-pointer min-w-0 ${
+              className={`flex flex-col items-center text-center p-7 sm:p-8 rounded-[5px] border-2 transition-all duration-200 relative group cursor-pointer min-w-0 ${
                 isSelected
-                  ? 'border-sky-600 bg-sky-50/90 shadow-xl ring-4 ring-sky-500/20 scale-[1.03]'
-                  : 'border-slate-200/90 bg-white hover:border-slate-300 hover:shadow-lg'
+                  ? 'border-sky-600 bg-gradient-to-b from-sky-50/90 to-blue-50/40 shadow-xl ring-4 ring-sky-500/20 scale-[1.02]'
+                  : 'border-slate-200/90 bg-white hover:border-sky-300 hover:shadow-xl hover:-translate-y-1'
               }`}
             >
               <div
-                className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-4 shadow-md bg-gradient-to-br ${role.color} ${
-                  isSelected ? 'scale-110' : ''
+                className={`w-16 h-16 rounded-[5px] flex items-center justify-center text-white mb-4 shadow-md bg-gradient-to-br ${role.color} transition-transform duration-200 ${
+                  isSelected ? 'scale-110 shadow-sky-500/30' : 'group-hover:scale-105'
                 }`}
               >
-                <Icon className="w-7 h-7" aria-hidden="true" />
+                <Icon className="w-8 h-8" aria-hidden="true" />
               </div>
 
-              <h3 className="text-lg font-black text-slate-900 mb-1.5">{role.title}</h3>
-              <p className="text-xs font-semibold text-slate-500 leading-snug line-clamp-3">
+              <h3 className="text-xl font-black text-slate-900 mb-2">{role.title}</h3>
+              <p className="text-xs sm:text-sm font-semibold text-slate-500 leading-relaxed line-clamp-3">
                 {role.description}
               </p>
 
               {isSelected && (
-                <div className="mt-4 text-[11px] font-black text-sky-700 bg-sky-100 px-3 py-1 rounded-full border border-sky-200">
-                  Selected
+                <div className="mt-4 text-xs font-black text-sky-800 bg-white/90 px-4 py-1.5 rounded-[5px] border border-sky-300 shadow-xs flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-sky-600" aria-hidden="true" />
+                  <span>Selected</span>
                 </div>
               )}
             </button>
@@ -106,7 +111,7 @@ export const RoleSelector = ({ selectedRole, onSelectRole, onProceed }) => {
         <button
           type="button"
           onClick={onProceed}
-          className="inline-flex items-center gap-3 px-10 py-4 bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-black text-lg rounded-2xl shadow-xl shadow-sky-200/80 hover:shadow-2xl hover:scale-[1.01] active:scale-[0.99] transition-all focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
+          className="inline-flex items-center gap-3 px-12 py-5 bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-black text-lg sm:text-xl rounded-[5px] shadow-xl shadow-sky-500/25 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all focus-visible:ring-4 focus-visible:ring-sky-500/20 focus-visible:ring-offset-2 cursor-pointer"
         >
           <span>Continue with {roles.find(r => r.id === selectedRole)?.title} Registration</span>
           <ArrowRight className="w-6 h-6" aria-hidden="true" />

@@ -8,7 +8,11 @@ import {
   AlertCircle,
   ArrowRight,
   CheckCircle2,
-  Sparkles
+  Sparkles,
+  Mail,
+  Lock,
+  User,
+  KeyRound
 } from 'lucide-react';
 import logoImg from '../assets/logo.jpg';
 
@@ -64,11 +68,11 @@ const OfficialGoogleButton = ({ onGoogleAuthSuccess, setErrorMessage, setIsSubmi
           onError={() => {
             setErrorMessage('Google Sign-In was unsuccessful.');
           }}
-          shape="pill"
+          shape="rectangular"
           theme="filled_blue"
           size="large"
           text="continue_with"
-          width="360"
+          width="380"
         />
       </div>
     </div>
@@ -164,63 +168,95 @@ const LoginPageContent = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center bg-slate-50/80 px-4 sm:px-6 lg:px-8 py-10 md:py-16 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col justify-center items-center bg-gradient-to-br from-slate-50 via-sky-50/40 to-slate-100 px-4 sm:px-6 lg:px-8 py-10 md:py-16 relative overflow-hidden">
+      {/* Decorative Ambient Background */}
+      <div className="absolute -top-32 -left-32 w-96 h-96 bg-sky-400/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-orange-400/15 rounded-full blur-3xl pointer-events-none" />
       <div className="bg-ambient-pattern" />
-      <div className="bg-ambient-glow-1" />
-      <div className="bg-ambient-glow-2" />
 
       {/* RENDER 1: DEDICATED EMPLOYEE STAFF LOGIN (/employee path) */}
       {isEmployeePath ? (
-        <div className="w-full max-w-xl p-8 sm:p-10 md:p-12 bg-white/95 backdrop-blur-xl rounded-3xl border border-slate-200/90 shadow-2xl shadow-slate-200/60 relative z-10 space-y-7">
-          <div className="text-center mb-8">
-            <img src={logoImg} alt="ArogyaX Logo" className="h-14 object-contain mx-auto mb-4" />
-            <h1 className="text-2xl sm:text-3xl font-black text-sky-700 tracking-tight">ArogyaX Staff Portal</h1>
-            <p className="text-sm font-bold text-slate-500 mt-1.5">Admin & Manager Control Panel</p>
+        <div className="w-full max-w-2xl p-10 sm:p-14 md:p-16 bg-white/95 backdrop-blur-2xl rounded-[5px] border border-slate-200/90 shadow-2xl shadow-sky-500/10 relative z-10 space-y-8 transition-all">
+          
+          {/* Header Security Badge & Logo */}
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center gap-2 px-4.5 py-1.5 rounded-[5px] bg-sky-50 text-sky-800 text-xs font-black border border-sky-200 shadow-xs mx-auto">
+              <ShieldCheck className="w-4.5 h-4.5 text-sky-600" aria-hidden="true" />
+              <span>ArogyaX Staff Control Panel</span>
+            </div>
+            
+            <img src={logoImg} alt="ArogyaX Logo" className="h-16 sm:h-18 object-contain mx-auto my-2" />
+            
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight">
+              Staff Portal Sign In
+            </h1>
+            <p className="text-sm sm:text-base font-bold text-slate-500 max-w-lg mx-auto">
+              Restricted portal for System Administrators & Operational Managers
+            </p>
           </div>
 
+          {/* Status Alert Banner */}
           {errorMessage && (
-            <div className="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-sm font-semibold flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 shrink-0" aria-hidden="true" />
+            <div className="p-5 bg-rose-50 border border-rose-200 text-rose-700 rounded-[5px] text-sm font-bold flex items-center gap-3 shadow-xs">
+              <AlertCircle className="w-5 h-5 shrink-0 text-rose-600" aria-hidden="true" />
               <span>{errorMessage}</span>
             </div>
           )}
 
-          <form onSubmit={handleEmployeeSubmit} className="space-y-6">
+          <form onSubmit={handleEmployeeSubmit} className="space-y-7">
             <div>
-              <label htmlFor="emp-username" className="text-xs font-extrabold text-slate-700 uppercase tracking-wider block mb-2">Staff Username or Email</label>
-              <input
-                id="emp-username"
-                type="text"
-                className="w-full px-5 py-4 bg-white border border-slate-200/90 rounded-2xl text-base font-medium focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all shadow-xs"
-                value={empUsername}
-                onChange={(e) => setEmpUsername(e.target.value)}
-                placeholder="admin or manager username"
-                required
-              />
+              <label htmlFor="emp-username" className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider block mb-2.5">
+                Staff Username or Email
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4.5 flex items-center pointer-events-none text-slate-400">
+                  <User className="w-5 h-5" aria-hidden="true" />
+                </div>
+                <input
+                  id="emp-username"
+                  type="text"
+                  className="w-full pl-12 pr-6 py-4.5 bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-300 rounded-[5px] text-base sm:text-lg font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 transition-all shadow-xs"
+                  value={empUsername}
+                  onChange={(e) => setEmpUsername(e.target.value)}
+                  placeholder="admin or manager username"
+                  required
+                />
+              </div>
             </div>
 
             <div>
-              <label htmlFor="emp-password" className="text-xs font-extrabold text-slate-700 uppercase tracking-wider block mb-2">Password</label>
-              <input
-                id="emp-password"
-                type="password"
-                className="w-full px-5 py-4 bg-white border border-slate-200/90 rounded-2xl text-base font-medium focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all shadow-xs"
-                value={empPassword}
-                onChange={(e) => setEmpPassword(e.target.value)}
-                placeholder="Enter staff password"
-                required
-              />
+              <label htmlFor="emp-password" className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider block mb-2.5">
+                Staff Account Password
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4.5 flex items-center pointer-events-none text-slate-400">
+                  <KeyRound className="w-5 h-5" aria-hidden="true" />
+                </div>
+                <input
+                  id="emp-password"
+                  type="password"
+                  className="w-full pl-12 pr-6 py-4.5 bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-300 rounded-[5px] text-base sm:text-lg font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 transition-all shadow-xs"
+                  value={empPassword}
+                  onChange={(e) => setEmpPassword(e.target.value)}
+                  placeholder="Enter staff password"
+                  required
+                />
+              </div>
             </div>
 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-4 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 text-white font-black text-base rounded-2xl shadow-lg shadow-sky-200/80 hover:shadow-xl transition-all flex items-center justify-center gap-2.5 mt-4 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full py-5 px-8 bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-black text-base sm:text-lg rounded-[5px] shadow-lg shadow-sky-500/25 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-3 focus-visible:ring-4 focus-visible:ring-sky-500/20 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
             >
               <span>{isSubmitting ? 'Authenticating Staff...' : 'Sign In to Staff Portal'}</span>
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
             </button>
           </form>
+
+          <div className="text-center pt-3 border-t border-slate-100">
+            <span className="text-xs font-black text-slate-400 tracking-wider uppercase">ArogyaX Enterprise Security • SSL Encrypted</span>
+          </div>
         </div>
       ) : (
         /* RENDER 2: MULTI-STEP REGISTRATION & UNIFIED LOGIN PORTAL */
@@ -248,35 +284,39 @@ const LoginPageContent = () => {
 
           {/* C. Unified Login View */}
           {viewMode === 'login' && (
-            <div className="w-full max-w-xl mx-auto p-8 sm:p-10 md:p-12 bg-white/95 backdrop-blur-2xl rounded-3xl border border-slate-200/90 shadow-2xl shadow-slate-300/50 space-y-7">
+            <div className="w-full max-w-2xl mx-auto p-10 sm:p-14 md:p-16 bg-white/95 backdrop-blur-2xl rounded-[5px] border border-slate-200/90 shadow-2xl shadow-sky-500/10 space-y-9 transition-all">
+              
               {/* Logo & Header */}
-              <div className="text-center mb-8">
-                <img src={logoImg} alt="ArogyaX Logo" className="h-14 sm:h-16 object-contain mx-auto mb-4" />
-                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              <div className="text-center space-y-3">
+                <img src={logoImg} alt="ArogyaX Logo" className="h-16 sm:h-20 object-contain mx-auto mb-2" />
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight">
                   Arogya<span className="text-orange-600">X</span> Health Identity
                 </h1>
-                <p className="text-xs font-bold text-slate-500 mt-2">One Unified Portal for Patients, Doctors & Facilities</p>
+                <p className="text-sm sm:text-base font-bold text-slate-500 max-w-lg mx-auto leading-relaxed">
+                  One Unified Health Portal for Patients, Doctors, Hospitals & Facilities
+                </p>
               </div>
 
-              {/* Status Alerts */}
+              {/* Status Alert Banners */}
               {errorMessage && (
-                <div className="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-sm font-semibold flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 shrink-0" aria-hidden="true" />
+                <div className="p-5 bg-rose-50 border border-rose-200 text-rose-700 rounded-[5px] text-sm font-bold flex items-center gap-3 shadow-xs">
+                  <AlertCircle className="w-5 h-5 shrink-0 text-rose-600" aria-hidden="true" />
                   <span>{errorMessage}</span>
                 </div>
               )}
               {successMessage && (
-                <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-2xl text-sm font-semibold flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 shrink-0" aria-hidden="true" />
+                <div className="p-5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-[5px] text-sm font-bold flex items-center gap-3 shadow-xs">
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" aria-hidden="true" />
                   <span>{successMessage}</span>
                 </div>
               )}
 
-              <div className="space-y-7">
+              <div className="space-y-8">
                 {/* Option 1: Fast Google OAuth */}
-                <div className="p-6 bg-slate-50 border border-slate-200/90 rounded-2xl text-center space-y-3">
-                  <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-sky-100/90 text-sky-800 text-xs font-black border border-sky-200">
-                    <Sparkles className="w-4 h-4 text-sky-600" aria-hidden="true" /> Option 1: Fast Google OAuth Sign-In
+                <div className="p-7 bg-gradient-to-br from-slate-50 to-sky-50/50 border border-slate-200/90 rounded-[5px] text-center space-y-4 shadow-xs">
+                  <div className="inline-flex items-center gap-2 px-4.5 py-1.5 rounded-[5px] bg-white text-sky-800 text-xs font-black border border-sky-200 shadow-xs">
+                    <Sparkles className="w-4 h-4 text-sky-600" aria-hidden="true" />
+                    <span>Option 1: Fast Google OAuth Sign-In</span>
                   </div>
                   <OfficialGoogleButton
                     onGoogleAuthSuccess={handleGoogleAuthSuccess}
@@ -286,54 +326,68 @@ const LoginPageContent = () => {
                 </div>
 
                 {/* Divider */}
-                <div className="flex items-center text-slate-400 text-xs py-2">
+                <div className="flex items-center text-slate-400 text-xs py-1">
                   <div className="flex-1 border-b border-slate-200" />
-                  <span className="px-4 font-bold uppercase tracking-wider text-xs text-slate-500">Or Sign In with Email</span>
+                  <span className="px-5 font-black uppercase tracking-wider text-xs text-slate-500">Or Sign In with Email</span>
                   <div className="flex-1 border-b border-slate-200" />
                 </div>
 
                 {/* Option 2: Unified Email / Password Sign In */}
-                <form onSubmit={handleUnifiedLoginSubmit} className="space-y-6">
+                <form onSubmit={handleUnifiedLoginSubmit} className="space-y-7">
                   <div>
-                    <label htmlFor="user-email" className="text-xs font-extrabold text-slate-700 uppercase tracking-wider block mb-2">Email Address</label>
-                    <input
-                      id="user-email"
-                      type="email"
-                      className="w-full px-5 py-4 bg-white border border-slate-200/90 rounded-2xl text-base font-medium focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all shadow-xs"
-                      value={loginIdentifier}
-                      onChange={(e) => setLoginIdentifier(e.target.value)}
-                      placeholder="user@gmail.com or facility@domain.com"
-                      required
-                    />
+                    <label htmlFor="user-email" className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider block mb-2.5">
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-4.5 flex items-center pointer-events-none text-slate-400">
+                        <Mail className="w-5 h-5" aria-hidden="true" />
+                      </div>
+                      <input
+                        id="user-email"
+                        type="email"
+                        className="w-full pl-12 pr-6 py-4.5 bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-300 rounded-[5px] text-base sm:text-lg font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 transition-all shadow-xs"
+                        value={loginIdentifier}
+                        onChange={(e) => setLoginIdentifier(e.target.value)}
+                        placeholder="user@gmail.com or facility@domain.com"
+                        required
+                      />
+                    </div>
                   </div>
 
                   <div>
-                    <label htmlFor="user-password" className="text-xs font-extrabold text-slate-700 uppercase tracking-wider block mb-2">Password</label>
-                    <input
-                      id="user-password"
-                      type="password"
-                      className="w-full px-5 py-4 bg-white border border-slate-200/90 rounded-2xl text-base font-medium focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all shadow-xs"
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder="Enter password"
-                      required
-                    />
+                    <label htmlFor="user-password" className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider block mb-2.5">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-4.5 flex items-center pointer-events-none text-slate-400">
+                        <Lock className="w-5 h-5" aria-hidden="true" />
+                      </div>
+                      <input
+                        id="user-password"
+                        type="password"
+                        className="w-full pl-12 pr-6 py-4.5 bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-300 rounded-[5px] text-base sm:text-lg font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 transition-all shadow-xs"
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        placeholder="Enter your account password"
+                        required
+                      />
+                    </div>
                   </div>
 
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-4 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 text-white font-black text-base rounded-2xl shadow-lg shadow-sky-200/80 hover:shadow-xl transition-all flex items-center justify-center gap-2.5 mt-4 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full py-5 px-8 bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-black text-base sm:text-lg rounded-[5px] shadow-lg shadow-sky-500/25 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-3 focus-visible:ring-4 focus-visible:ring-sky-500/20 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                   >
-                    <span>{isSubmitting ? 'Authenticating...' : 'Sign In'}</span>
+                    <span>{isSubmitting ? 'Authenticating Account...' : 'Sign In'}</span>
                     <ArrowRight className="w-5 h-5" aria-hidden="true" />
                   </button>
                 </form>
 
                 {/* Register Link */}
-                <div className="text-center pt-4 border-t border-slate-100">
-                  <p className="text-sm font-semibold text-slate-600">
-                    New to ArogyaX?{' '}
+                <div className="text-center pt-5 border-t border-slate-100">
+                  <p className="text-base font-bold text-slate-600">
+                    New to ArogyaX Portal?{' '}
                     <button
                       type="button"
                       onClick={() => {
@@ -341,7 +395,7 @@ const LoginPageContent = () => {
                         setSuccessMessage('');
                         setViewMode('role_select');
                       }}
-                      className="font-black text-sky-600 hover:text-sky-700 underline cursor-pointer focus-visible:ring-2 focus-visible:ring-sky-500 rounded-sm ml-1"
+                      className="font-black text-sky-600 hover:text-sky-700 underline cursor-pointer focus-visible:ring-2 focus-visible:ring-sky-500 rounded-xs ml-1"
                     >
                       Start Multi-Step Registration Wizard
                     </button>
