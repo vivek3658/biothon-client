@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { apiClient } from '../api/axios';
 import { Navbar } from '../components/Navbar';
 import { Sidebar } from '../components/Sidebar';
 import { AdminManagerCrud } from '../components/AdminManagerCrud';
@@ -15,7 +16,9 @@ import {
   Clock, 
   CheckCircle2, 
   ShieldCheck,
-  Pill
+  Pill,
+  LayoutDashboard,
+  FileText
 } from 'lucide-react';
 
 import { ReceptionDashboard } from './dashboards/ReceptionDashboard';
@@ -119,6 +122,53 @@ export const DashboardPage = () => {
 
         {/* Content Body */}
         <main className="flex-1 responsive-container py-6 sm:py-8 space-y-6">
+          {/* Mobile Tab Sub-Navigation Bar for Admin & Manager */}
+          {isAdminOrManager && (
+            <div className="md:hidden flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`px-4 py-2 rounded-xl text-xs font-black shrink-0 transition-colors flex items-center gap-1.5 ${
+                  activeTab === 'overview' ? 'bg-sky-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200'
+                }`}
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" /> Dashboard
+              </button>
+              <button
+                onClick={() => setActiveTab('pending')}
+                className={`px-4 py-2 rounded-xl text-xs font-black shrink-0 transition-colors flex items-center gap-1.5 ${
+                  activeTab === 'pending' ? 'bg-sky-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5" /> Pending ({stats.pendingOrgsCount})
+              </button>
+              <button
+                onClick={() => setActiveTab('organizations')}
+                className={`px-4 py-2 rounded-xl text-xs font-black shrink-0 transition-colors flex items-center gap-1.5 ${
+                  activeTab === 'organizations' ? 'bg-sky-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200'
+                }`}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" /> Orgs ({stats.totalOrgsCount})
+              </button>
+              <button
+                onClick={() => setActiveTab('medicines')}
+                className={`px-4 py-2 rounded-xl text-xs font-black shrink-0 transition-colors flex items-center gap-1.5 ${
+                  activeTab === 'medicines' ? 'bg-sky-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200'
+                }`}
+              >
+                <Pill className="w-3.5 h-3.5" /> Catalog ({stats.medicinesCount})
+              </button>
+              {user?.role === 'admin' && (
+                <button
+                  onClick={() => setActiveTab('managers')}
+                  className={`px-4 py-2 rounded-xl text-xs font-black shrink-0 transition-colors flex items-center gap-1.5 ${
+                    activeTab === 'managers' ? 'bg-sky-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200'
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" /> Managers
+                </button>
+              )}
+            </div>
+          )}
           {/* 1. RECEPTIONIST DASHBOARD */}
           {isReceptionist ? (
             <ReceptionDashboard user={user} />

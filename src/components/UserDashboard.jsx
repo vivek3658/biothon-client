@@ -1183,100 +1183,254 @@ export const UserDashboard = () => {
   // Doctor Prescription Creator Workspace
   if (createRxWorkspace) {
     return (
-      <div className="app-container" style={{ padding: '24px', maxWidth: '1000px', margin: '0 auto' }}>
-        <div className="white-panel" style={{ padding: '28px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', borderBottom: '2px solid #059669', paddingBottom: '14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <button type="button" onClick={() => setCreateRxWorkspace(null)} className="btn-secondary" style={{ padding: '6px 12px' }}>
-                <ArrowLeft size={16} /><span>Back</span>
+      <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:px-8 py-6 space-y-6">
+        <div className="bg-white/95 backdrop-blur-xl rounded-3xl border border-slate-200/90 shadow-2xl p-6 sm:p-8 space-y-6">
+          {/* Header Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => setCreateRxWorkspace(null)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-black text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-colors focus-visible:ring-2 focus-visible:ring-sky-500"
+              >
+                <ArrowLeft className="w-4 h-4" aria-hidden="true" /> Cancel & Return
               </button>
               <div>
-                <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a' }}>Issue Medical Prescription</h2>
-                <p style={{ fontSize: '0.84rem', color: '#64748b' }}>Patient: <strong>{createRxWorkspace.patient.name}</strong> • Blood Group: <strong>{createRxWorkspace.patient.bloodGroup}</strong></p>
+                <span className="text-xs font-black text-sky-600 uppercase tracking-widest block">
+                  Full-Page Prescription Creator
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                  Official Medical Prescription
+                </h2>
               </div>
             </div>
-            <span className="badge badge-approved" style={{ fontSize: '0.85rem' }}>OFFICIAL RX</span>
+            <div className="px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 text-xs font-black flex items-center gap-2 self-start sm:self-auto">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" aria-hidden="true" />
+              <span>Verified Patient: {createRxWorkspace.patient.name} ({createRxWorkspace.patient.bloodGroup || 'A+'})</span>
+            </div>
           </div>
 
-          <form onSubmit={handleIssuePrescription} style={{ display: 'grid', gap: '20px' }}>
-            <div className="grid-2col" style={{ gap: '14px' }}>
-              <div className="form-group">
-                <label className="form-label">Consultation Fee (₹)</label>
-                <input type="number" className="form-input" value={consultationFee} onChange={(e) => setConsultationFee(e.target.value)} required />
+          <form onSubmit={handleIssuePrescription} className="space-y-6">
+            {/* Metadata Fields */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-5 rounded-2xl border border-slate-200/80">
+              <div>
+                <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider block mb-2">
+                  Consultation Fee (₹)
+                </label>
+                <input
+                  type="number"
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-base font-bold focus:ring-2 focus:ring-sky-500 shadow-xs"
+                  value={consultationFee}
+                  onChange={(e) => setConsultationFee(e.target.value)}
+                  placeholder="300"
+                  required
+                />
               </div>
-              <div className="form-group">
-                <label className="form-label">Prescribing Practitioner</label>
-                <input type="text" className="form-input" value={`Dr. ${userProfile?.name}`} disabled />
+              <div>
+                <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider block mb-2">
+                  Prescribing Practitioner
+                </label>
+                <input
+                  type="text"
+                  className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-base font-bold text-slate-700 cursor-not-allowed"
+                  value={`Dr. ${userProfile?.name}`}
+                  disabled
+                />
               </div>
             </div>
 
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>Prescribed Medications ({medicationsList.length})</h4>
-                <button type="button" onClick={handleAddMedicationRow} className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.82rem' }}>
-                  <Plus size={14} /><span>Add Medication</span>
+            {/* Prescribed Medications Table */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-2">
+                  <Pill className="w-5 h-5 text-sky-600" aria-hidden="true" />
+                  <h4 className="text-lg font-black text-slate-900">
+                    Prescribed Medications Table ({medicationsList.length})
+                  </h4>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddMedicationRow}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all focus-visible:ring-2 focus-visible:ring-sky-500"
+                >
+                  <Plus className="w-4 h-4" aria-hidden="true" /> Add Medicine Row
                 </button>
               </div>
 
-              {medicationsList.map((med, idx) => (
-                <div key={idx} className="white-card" style={{ padding: '14px', marginBottom: '12px', borderLeft: '4px solid #059669', position: 'relative' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#059669' }}>Medication #{idx + 1}</span>
-                    {medicationsList.length > 1 && (
-                      <button type="button" onClick={() => handleRemoveMedicationRow(idx)} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer' }}>
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid-2col" style={{ gap: '10px', marginBottom: '10px' }}>
-                    <div className="form-group" style={{ position: 'relative' }}>
-                      <label className="form-label">Medicine Name</label>
-                      <input type="text" className="form-input" placeholder="Type medicine name..." value={med.searchQuery} onChange={(e) => handleUpdateMedRow(idx, 'searchQuery', e.target.value)} required />
-
-                      {med.showSuggestions && (
-                        <div style={{ position: 'absolute', left: 0, right: 0, top: '100%', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 100, maxHeight: '180px', overflowY: 'auto' }}>
-                          {catalogMedicines.filter(m => m.medicineName.toLowerCase().includes((med.searchQuery || '').toLowerCase())).slice(0, 6).map(cMed => (
-                            <div key={cMed._id} onClick={() => handleSelectYoutubeSuggestion(idx, cMed)} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '0.82rem', borderBottom: '1px solid #f1f5f9' }}>
-                              <strong>{cMed.medicineName}</strong> <span style={{ color: '#64748b', fontSize: '0.75rem' }}>({cMed.type || 'tablet'})</span>
+              <div className="overflow-x-auto border border-slate-200/90 rounded-2xl shadow-xs bg-white">
+                <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                  <thead>
+                    <tr className="bg-sky-600 text-white font-black text-xs uppercase tracking-wider">
+                      <th className="p-3.5 w-10 text-center">#</th>
+                      <th className="p-3.5 min-w-[240px]">Medicine Name (Live Autocomplete)</th>
+                      <th className="p-3.5 min-w-[220px]">Form & Dosage</th>
+                      <th className="p-3.5 min-w-[130px]">Frequency</th>
+                      <th className="p-3.5 min-w-[140px]">Meal Timing</th>
+                      <th className="p-3.5 min-w-[120px]">Duration</th>
+                      <th className="p-3.5 min-w-[180px]">Directions & Notes</th>
+                      <th className="p-3.5 w-16 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {medicationsList.map((med, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="p-3 text-center font-black text-slate-500">{idx + 1}</td>
+                        
+                        {/* Medicine Name with Live Autocomplete */}
+                        <td className="p-3 relative">
+                          <input
+                            type="text"
+                            className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold focus:ring-2 focus:ring-sky-500 shadow-xs"
+                            placeholder="Search Admin Catalog (e.g. Paracetamol)..."
+                            value={med.searchQuery}
+                            onChange={(e) => handleUpdateMedRow(idx, 'searchQuery', e.target.value)}
+                            required
+                          />
+                          {med.showSuggestions && (
+                            <div className="absolute left-3 right-3 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto divide-y divide-slate-100">
+                              {catalogMedicines
+                                .filter(m => m.medicineName.toLowerCase().includes((med.searchQuery || '').toLowerCase()))
+                                .slice(0, 6)
+                                .map(cMed => (
+                                  <div
+                                    key={cMed._id}
+                                    onClick={() => handleSelectYoutubeSuggestion(idx, cMed)}
+                                    className="p-3 hover:bg-sky-50 cursor-pointer transition-colors"
+                                  >
+                                    <div className="font-bold text-slate-900 text-xs sm:text-sm">{cMed.medicineName}</div>
+                                    <div className="text-[11px] text-slate-500 font-semibold">{cMed.manufacturer || 'General'} • {cMed.type || 'tablet'}</div>
+                                  </div>
+                                ))}
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                          )}
+                        </td>
 
-                    <div className="grid-2col" style={{ gap: '8px' }}>
-                      <div className="form-group">
-                        <label className="form-label">Dosage</label>
-                        <input type="text" className="form-input" value={med.dosage} onChange={(e) => handleUpdateMedRow(idx, 'dosage', e.target.value)} placeholder="500" required />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Unit</label>
-                        <select className="form-input" value={med.unit} onChange={(e) => handleUpdateMedRow(idx, 'unit', e.target.value)}>
-                          {['mg', 'ml', 'g', 'mcg', 'drop', 'capsule', 'tablet'].map(u => <option key={u} value={u}>{u}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
+                        {/* Form & Dosage */}
+                        <td className="p-3">
+                          <div className="flex flex-col gap-2">
+                            <select
+                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-sky-500"
+                              value={med.type}
+                              onChange={(e) => handleUpdateMedRow(idx, 'type', e.target.value)}
+                            >
+                              <option value="oral_tablet">oral tablet</option>
+                              <option value="liquid_syrup">liquid syrup</option>
+                              <option value="injection">injection</option>
+                              <option value="topical_ointment">topical ointment</option>
+                              <option value="eye_drop">eye/ear drops</option>
+                              <option value="capsule">capsule</option>
+                            </select>
 
-                  <div className="grid-2col" style={{ gap: '10px' }}>
-                    <div className="form-group">
-                      <label className="form-label">Times a Day</label>
-                      <input type="text" className="form-input" value={med.timesADay} onChange={(e) => handleUpdateMedRow(idx, 'timesADay', e.target.value)} placeholder="2" required />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Duration</label>
-                      <input type="text" className="form-input" value={med.howManyDays} onChange={(e) => handleUpdateMedRow(idx, 'howManyDays', e.target.value)} placeholder="5 days" required />
-                    </div>
-                  </div>
-                </div>
-              ))}
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                className="w-24 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center focus:ring-2 focus:ring-sky-500 shadow-xs"
+                                value={med.dosage}
+                                onChange={(e) => handleUpdateMedRow(idx, 'dosage', e.target.value)}
+                                placeholder="500"
+                                required
+                              />
+                              <select
+                                className="px-2.5 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-sky-500"
+                                value={med.unit}
+                                onChange={(e) => handleUpdateMedRow(idx, 'unit', e.target.value)}
+                              >
+                                {['mg', 'ml', 'g', 'mcg', 'drop', 'capsule', 'tablet'].map(u => (
+                                  <option key={u} value={u}>{u}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Frequency */}
+                        <td className="p-3">
+                          <select
+                            className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-sky-500"
+                            value={med.timesADay}
+                            onChange={(e) => handleUpdateMedRow(idx, 'timesADay', e.target.value)}
+                          >
+                            <option value="1">1x Daily (Once)</option>
+                            <option value="2">2x Daily (Twice)</option>
+                            <option value="3">3x Daily (Thrice)</option>
+                            <option value="4">4x Daily (4 Times)</option>
+                            <option value="SOS">SOS (As Needed)</option>
+                          </select>
+                        </td>
+
+                        {/* Meal Timing Toggle */}
+                        <td className="p-3">
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateMedRow(idx, 'beforeEating', !med.beforeEating)}
+                            className={`w-full px-3 py-2 rounded-xl text-xs font-extrabold transition-all border ${
+                              med.beforeEating
+                                ? 'bg-orange-50 text-orange-800 border-orange-300'
+                                : 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                            }`}
+                          >
+                            {med.beforeEating ? 'Before Food' : 'After Food'}
+                          </button>
+                        </td>
+
+                        {/* Duration */}
+                        <td className="p-3">
+                          <input
+                            type="text"
+                            className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-sky-500"
+                            value={med.howManyDays}
+                            onChange={(e) => handleUpdateMedRow(idx, 'howManyDays', e.target.value)}
+                            placeholder="5 days"
+                            required
+                          />
+                        </td>
+
+                        {/* Directions & Notes */}
+                        <td className="p-3">
+                          <input
+                            type="text"
+                            className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-sky-500"
+                            value={med.instructions}
+                            onChange={(e) => handleUpdateMedRow(idx, 'instructions', e.target.value)}
+                            placeholder="Take after meals."
+                          />
+                        </td>
+
+                        {/* Action */}
+                        <td className="p-3 text-center">
+                          {medicationsList.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveMedicationRow(idx)}
+                              className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl border border-rose-200 transition-colors"
+                              title="Delete row"
+                            >
+                              <Trash2 className="w-4 h-4" aria-hidden="true" />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '14px' }}>
-              <button type="button" onClick={() => setCreateRxWorkspace(null)} className="btn-secondary" style={{ padding: '10px 20px' }}>Cancel</button>
-              <button type="submit" className="btn-success" disabled={isSubmitting} style={{ padding: '10px 24px' }}>
-                <span>{isSubmitting ? 'Issuing Rx...' : 'Issue Official Prescription'}</span>
+            {/* Action Footer */}
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setCreateRxWorkspace(null)}
+                className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-sm rounded-xl transition-colors focus-visible:ring-2 focus-visible:ring-sky-500"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-8 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-base rounded-xl shadow-lg shadow-emerald-200/80 hover:shadow-xl transition-all focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:opacity-60"
+              >
+                <span>{isSubmitting ? 'Issuing Official Prescription...' : 'Issue Official Prescription'}</span>
               </button>
             </div>
           </form>
