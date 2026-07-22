@@ -62,7 +62,7 @@ export const RoleSelector = ({ selectedRole, onSelectRole, onProceed }) => {
       </div>
 
       {/* Role Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-6">
         {roles.map((role) => {
           const Icon = role.icon;
           const isSelected = selectedRole === role.id;
@@ -72,7 +72,7 @@ export const RoleSelector = ({ selectedRole, onSelectRole, onProceed }) => {
               key={role.id}
               type="button"
               onClick={() => onSelectRole(role.id)}
-              className={`flex flex-col items-center text-center p-6 rounded-2xl border-2 transition-all duration-300 relative group cursor-pointer ${
+              className={`flex flex-col items-center text-center p-6 rounded-2xl border-2 transition-all duration-300 relative group cursor-pointer min-w-0 ${
                 isSelected
                   ? 'border-sky-600 bg-sky-50/90 shadow-xl ring-4 ring-sky-500/20 scale-[1.03]'
                   : 'border-slate-200/90 bg-white hover:border-slate-300 hover:shadow-lg'

@@ -167,9 +167,9 @@ export const PrescriptionPage = ({ prescriptionId, onBack }) => {
   const lowCostTotal = lowCostItems.reduce((sum, item) => sum + (item.price || 0), 0);
 
   return (
-    <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%', padding: '16px' }}>
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Action Header Bar */}
-      <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+      <div className="no-print flex items-center justify-between gap-4 flex-wrap pb-2">
         {onBack && (
           <button type="button" onClick={onBack} className="btn-secondary">
             <ArrowLeft size={16} />
@@ -177,7 +177,7 @@ export const PrescriptionPage = ({ prescriptionId, onBack }) => {
           </button>
         )}
 
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div className="flex items-center gap-3 flex-wrap">
           <button type="button" onClick={handleFetchLowestCostMedicines} className="btn-primary" style={{ background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', padding: '8px 16px' }}>
             <Tag size={16} />
             <span>Get Lowest Cost Medicines</span>
@@ -191,7 +191,7 @@ export const PrescriptionPage = ({ prescriptionId, onBack }) => {
       </div>
 
       {/* Main Prescription Paper Document */}
-      <div className="white-panel" style={{ padding: '32px 28px', background: '#ffffff', borderRadius: '16px', boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border-color)' }}>
+      <div className="white-panel p-6 sm:p-8 bg-white rounded-3xl shadow-xl border border-slate-200/90 space-y-6">
         {/* Document Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #0284c7', paddingBottom: '20px', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

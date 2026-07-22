@@ -258,6 +258,14 @@ export const UserDashboard = () => {
   const [familyNewBloodGroup, setFamilyNewBloodGroup] = useState('A+');
   const [familyNewRelation, setFamilyNewRelation] = useState('Family Member');
 
+  // Sync Doctor mode & tab when userProfile arrives or updates
+  useEffect(() => {
+    if (userProfile?.isDoctor) {
+      setActiveMode('doctor');
+      setActiveTab((prev) => (prev === 'profile' ? 'practitioner' : prev));
+    }
+  }, [userProfile?.isDoctor]);
+
   // Sync edit form fields when activeProfile changes
   useEffect(() => {
     if (activeProfile) {
@@ -1567,6 +1575,111 @@ export const UserDashboard = () => {
 
       {/* MAIN CONTENT WORKSPACE */}
       <div className="app-content">
+        {/* Mobile Sub-Navigation Bar */}
+        <div className="md:hidden flex items-center gap-2 overflow-x-auto pb-3 scrollbar-none mb-4">
+          {activeMode === 'doctor' ? (
+            <>
+              <button
+                onClick={() => setActiveTab('practitioner')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black shrink-0 transition-colors ${
+                  activeTab === 'practitioner' ? 'bg-sky-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200'
+                }`}
+              >
+                Doctor Profile
+              </button>
+              <button
+                onClick={() => setActiveTab('qrcode')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black shrink-0 transition-colors ${
+                  activeTab === 'qrcode' ? 'bg-sky-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200'
+                }`}
+              >
+                Doctor QR
+              </button>
+              <button
+                onClick={() => { setShowScanModal(true); fetchAdminMedicines(); }}
+                className="px-3.5 py-2 rounded-xl text-xs font-black shrink-0 bg-emerald-600 text-white shadow-md"
+              >
+                Scan & Prescribe
+              </button>
+              <button
+                onClick={() => setActiveTab('prescriptions')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black shrink-0 transition-colors ${
+                  activeTab === 'prescriptions' ? 'bg-sky-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200'
+                }`}
+              >
+                Prescriptions ({prescriptions.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('appointments')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black shrink-0 transition-colors ${
+                  activeTab === 'appointments' ? 'bg-sky-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200'
+                }`}
+              >
+                Appointments ({appointments.length})
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setActiveTab('profile')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black shrink-0 transition-colors ${
+                  activeTab === 'profile' ? 'bg-sky-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200'
+                }`}
+              >
+                Profile
+              </button>
+              <button
+                onClick={() => setActiveTab('qrcode')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black shrink-0 transition-colors ${
+                  activeTab === 'qrcode' ? 'bg-sky-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200'
+                }`}
+              >
+                Health QR
+              </button>
+              <button
+                onClick={() => setActiveTab('prescriptions')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black shrink-0 transition-colors ${
+                  activeTab === 'prescriptions' ? 'bg-sky-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200'
+                }`}
+              >
+                Prescriptions ({prescriptions.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('appointments')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black shrink-0 transition-colors ${
+                  activeTab === 'appointments' ? 'bg-sky-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200'
+                }`}
+              >
+                Appointments ({appointments.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('marketplace')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black shrink-0 transition-colors ${
+                  activeTab === 'marketplace' ? 'bg-sky-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200'
+                }`}
+              >
+                Marketplace
+              </button>
+              <button
+                onClick={() => { setActiveTab('my_orders'); fetchPatientOrders(); }}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black shrink-0 transition-colors ${
+                  activeTab === 'my_orders' ? 'bg-sky-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200'
+                }`}
+              >
+                Orders & Bills ({patientOrders.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('managed_profiles')}
+                className={`px-3.5 py-2 rounded-xl text-xs font-black shrink-0 transition-colors ${
+                  activeTab === 'managed_profiles' ? 'bg-sky-600 text-white shadow-md' : 'bg-white text-slate-700 border border-slate-200'
+                }`}
+              >
+                Family Profiles ({userProfile?.managedProfiles?.length || 0})
+              </button>
+            </>
+          )}
+        </div>
+
         {/* Notifications */}
         {successMsg && (
           <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius-sm)', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#047857', fontSize: '0.85rem' }}>
