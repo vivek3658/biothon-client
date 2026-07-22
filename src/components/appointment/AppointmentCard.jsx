@@ -1,3 +1,6 @@
+import React from 'react';
+import { Calendar, Clock, MapPin, QrCode, CheckCircle2, User, Play, XCircle, Trash2, Edit3, Check } from 'lucide-react';
+
 export const AppointmentCard = ({
   appointment,
   onViewQR,
