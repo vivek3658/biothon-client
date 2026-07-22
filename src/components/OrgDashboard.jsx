@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../api/axios';
 import { AppointmentCard } from './appointment/AppointmentCard';
