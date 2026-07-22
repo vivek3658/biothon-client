@@ -164,34 +164,34 @@ const LoginPageContent = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center bg-slate-50/80 px-4 sm:px-6 lg:px-8 py-8 md:py-12 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col justify-center items-center bg-slate-50/80 px-4 sm:px-6 lg:px-8 py-10 md:py-16 relative overflow-hidden">
       <div className="bg-ambient-pattern" />
       <div className="bg-ambient-glow-1" />
       <div className="bg-ambient-glow-2" />
 
       {/* RENDER 1: DEDICATED EMPLOYEE STAFF LOGIN (/employee path) */}
       {isEmployeePath ? (
-        <div className="w-full max-w-lg p-6 sm:p-9 md:p-11 bg-white/95 backdrop-blur-xl rounded-3xl border border-slate-200/90 shadow-2xl shadow-slate-200/60 relative z-10">
+        <div className="w-full max-w-xl p-8 sm:p-10 md:p-12 bg-white/95 backdrop-blur-xl rounded-3xl border border-slate-200/90 shadow-2xl shadow-slate-200/60 relative z-10 space-y-7">
           <div className="text-center mb-8">
-            <img src={logoImg} alt="ArogyaX Logo" className="h-12 object-contain mx-auto mb-3" />
-            <h1 className="text-2xl font-black text-sky-700">ArogyaX Staff Portal</h1>
-            <p className="text-sm font-semibold text-slate-500 mt-1">Admin & Manager Control Panel</p>
+            <img src={logoImg} alt="ArogyaX Logo" className="h-14 object-contain mx-auto mb-4" />
+            <h1 className="text-2xl sm:text-3xl font-black text-sky-700 tracking-tight">ArogyaX Staff Portal</h1>
+            <p className="text-sm font-bold text-slate-500 mt-1.5">Admin & Manager Control Panel</p>
           </div>
 
           {errorMessage && (
-            <div className="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-sm font-semibold flex items-center gap-2.5">
+            <div className="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-sm font-semibold flex items-center gap-3">
               <AlertCircle className="w-5 h-5 shrink-0" aria-hidden="true" />
               <span>{errorMessage}</span>
             </div>
           )}
 
-          <form onSubmit={handleEmployeeSubmit} className="space-y-5">
+          <form onSubmit={handleEmployeeSubmit} className="space-y-6">
             <div>
-              <label htmlFor="emp-username" className="text-sm font-bold text-slate-800 tracking-wide block mb-2">Staff Username or Email</label>
+              <label htmlFor="emp-username" className="text-xs font-extrabold text-slate-700 uppercase tracking-wider block mb-2">Staff Username or Email</label>
               <input
                 id="emp-username"
                 type="text"
-                className="w-full px-4 py-3 bg-white border border-slate-200/90 rounded-2xl text-base font-medium focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all"
+                className="w-full px-5 py-4 bg-white border border-slate-200/90 rounded-2xl text-base font-medium focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all shadow-xs"
                 value={empUsername}
                 onChange={(e) => setEmpUsername(e.target.value)}
                 placeholder="admin or manager username"
@@ -200,11 +200,11 @@ const LoginPageContent = () => {
             </div>
 
             <div>
-              <label htmlFor="emp-password" className="text-sm font-bold text-slate-800 tracking-wide block mb-2">Password</label>
+              <label htmlFor="emp-password" className="text-xs font-extrabold text-slate-700 uppercase tracking-wider block mb-2">Password</label>
               <input
                 id="emp-password"
                 type="password"
-                className="w-full px-4 py-3 bg-white border border-slate-200/90 rounded-2xl text-base font-medium focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all"
+                className="w-full px-5 py-4 bg-white border border-slate-200/90 rounded-2xl text-base font-medium focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all shadow-xs"
                 value={empPassword}
                 onChange={(e) => setEmpPassword(e.target.value)}
                 placeholder="Enter staff password"
@@ -215,7 +215,7 @@ const LoginPageContent = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-3.5 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 text-white font-black text-base rounded-2xl shadow-lg shadow-sky-200/80 hover:shadow-xl transition-all flex items-center justify-center gap-2 mt-2 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full py-4 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 text-white font-black text-base rounded-2xl shadow-lg shadow-sky-200/80 hover:shadow-xl transition-all flex items-center justify-center gap-2.5 mt-4 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <span>{isSubmitting ? 'Authenticating Staff...' : 'Sign In to Staff Portal'}</span>
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
@@ -224,7 +224,7 @@ const LoginPageContent = () => {
         </div>
       ) : (
         /* RENDER 2: MULTI-STEP REGISTRATION & UNIFIED LOGIN PORTAL */
-        <div className="w-full max-w-lg mx-auto relative z-10 flex flex-col items-center justify-center">
+        <div className="w-full relative z-10 flex flex-col items-center justify-center">
           
           {/* A. Role Selection View */}
           {viewMode === 'role_select' && (
@@ -248,35 +248,35 @@ const LoginPageContent = () => {
 
           {/* C. Unified Login View */}
           {viewMode === 'login' && (
-            <div className="w-full max-w-md mx-auto p-6 sm:p-8 md:p-10 bg-white/95 backdrop-blur-2xl rounded-3xl border border-slate-200/90 shadow-2xl shadow-slate-300/50 space-y-6">
+            <div className="w-full max-w-xl mx-auto p-8 sm:p-10 md:p-12 bg-white/95 backdrop-blur-2xl rounded-3xl border border-slate-200/90 shadow-2xl shadow-slate-300/50 space-y-7">
               {/* Logo & Header */}
-              <div className="text-center mb-6">
-                <img src={logoImg} alt="ArogyaX Logo" className="h-12 sm:h-14 object-contain mx-auto mb-3" />
+              <div className="text-center mb-8">
+                <img src={logoImg} alt="ArogyaX Logo" className="h-14 sm:h-16 object-contain mx-auto mb-4" />
                 <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                   Arogya<span className="text-orange-600">X</span> Health Identity
                 </h1>
-                <p className="text-xs font-bold text-slate-500 mt-1.5">One Unified Portal for Patients, Doctors & Facilities</p>
+                <p className="text-xs font-bold text-slate-500 mt-2">One Unified Portal for Patients, Doctors & Facilities</p>
               </div>
 
               {/* Status Alerts */}
               {errorMessage && (
-                <div className="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-sm font-semibold flex items-center gap-2.5">
+                <div className="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-sm font-semibold flex items-center gap-3">
                   <AlertCircle className="w-5 h-5 shrink-0" aria-hidden="true" />
                   <span>{errorMessage}</span>
                 </div>
               )}
               {successMessage && (
-                <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-2xl text-sm font-semibold flex items-center gap-2.5">
+                <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-2xl text-sm font-semibold flex items-center gap-3">
                   <CheckCircle2 className="w-5 h-5 shrink-0" aria-hidden="true" />
                   <span>{successMessage}</span>
                 </div>
               )}
 
-              <div className="space-y-6">
+              <div className="space-y-7">
                 {/* Option 1: Fast Google OAuth */}
-                <div className="p-5 bg-slate-50 border border-slate-200/80 rounded-2xl text-center">
-                  <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-sky-100/90 text-sky-800 text-xs font-black mb-3 border border-sky-200">
-                    <Sparkles className="w-4 h-4" aria-hidden="true" /> Option 1: Google OAuth Sign-In
+                <div className="p-6 bg-slate-50 border border-slate-200/90 rounded-2xl text-center space-y-3">
+                  <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-sky-100/90 text-sky-800 text-xs font-black border border-sky-200">
+                    <Sparkles className="w-4 h-4 text-sky-600" aria-hidden="true" /> Option 1: Fast Google OAuth Sign-In
                   </div>
                   <OfficialGoogleButton
                     onGoogleAuthSuccess={handleGoogleAuthSuccess}
@@ -286,20 +286,20 @@ const LoginPageContent = () => {
                 </div>
 
                 {/* Divider */}
-                <div className="flex items-center text-slate-400 text-xs py-1">
+                <div className="flex items-center text-slate-400 text-xs py-2">
                   <div className="flex-1 border-b border-slate-200" />
-                  <span className="px-4 font-bold uppercase tracking-wider text-xs">Or Sign In with Email</span>
+                  <span className="px-4 font-bold uppercase tracking-wider text-xs text-slate-500">Or Sign In with Email</span>
                   <div className="flex-1 border-b border-slate-200" />
                 </div>
 
                 {/* Option 2: Unified Email / Password Sign In */}
-                <form onSubmit={handleUnifiedLoginSubmit} className="space-y-5">
+                <form onSubmit={handleUnifiedLoginSubmit} className="space-y-6">
                   <div>
-                    <label htmlFor="user-email" className="text-sm font-bold text-slate-800 tracking-wide block mb-2">Email Address</label>
+                    <label htmlFor="user-email" className="text-xs font-extrabold text-slate-700 uppercase tracking-wider block mb-2">Email Address</label>
                     <input
                       id="user-email"
                       type="email"
-                      className="w-full px-4 py-3 bg-white border border-slate-200/90 rounded-2xl text-base font-medium focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all"
+                      className="w-full px-5 py-4 bg-white border border-slate-200/90 rounded-2xl text-base font-medium focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all shadow-xs"
                       value={loginIdentifier}
                       onChange={(e) => setLoginIdentifier(e.target.value)}
                       placeholder="user@gmail.com or facility@domain.com"
@@ -308,11 +308,11 @@ const LoginPageContent = () => {
                   </div>
 
                   <div>
-                    <label htmlFor="user-password" className="text-sm font-bold text-slate-800 tracking-wide block mb-2">Password</label>
+                    <label htmlFor="user-password" className="text-xs font-extrabold text-slate-700 uppercase tracking-wider block mb-2">Password</label>
                     <input
                       id="user-password"
                       type="password"
-                      className="w-full px-4 py-3 bg-white border border-slate-200/90 rounded-2xl text-base font-medium focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all"
+                      className="w-full px-5 py-4 bg-white border border-slate-200/90 rounded-2xl text-base font-medium focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all shadow-xs"
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       placeholder="Enter password"
@@ -323,7 +323,7 @@ const LoginPageContent = () => {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-3.5 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 text-white font-black text-base rounded-2xl shadow-lg shadow-sky-200/80 hover:shadow-xl transition-all flex items-center justify-center gap-2 mt-2 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full py-4 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 text-white font-black text-base rounded-2xl shadow-lg shadow-sky-200/80 hover:shadow-xl transition-all flex items-center justify-center gap-2.5 mt-4 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <span>{isSubmitting ? 'Authenticating...' : 'Sign In'}</span>
                     <ArrowRight className="w-5 h-5" aria-hidden="true" />
@@ -331,8 +331,8 @@ const LoginPageContent = () => {
                 </form>
 
                 {/* Register Link */}
-                <div className="text-center pt-3 border-t border-slate-100">
-                  <p className="text-sm font-medium text-slate-600">
+                <div className="text-center pt-4 border-t border-slate-100">
+                  <p className="text-sm font-semibold text-slate-600">
                     New to ArogyaX?{' '}
                     <button
                       type="button"
@@ -341,7 +341,7 @@ const LoginPageContent = () => {
                         setSuccessMessage('');
                         setViewMode('role_select');
                       }}
-                      className="font-black text-sky-600 hover:text-sky-700 underline cursor-pointer focus-visible:ring-2 focus-visible:ring-sky-500 rounded-sm"
+                      className="font-black text-sky-600 hover:text-sky-700 underline cursor-pointer focus-visible:ring-2 focus-visible:ring-sky-500 rounded-sm ml-1"
                     >
                       Start Multi-Step Registration Wizard
                     </button>
