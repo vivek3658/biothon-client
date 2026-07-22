@@ -1,7 +1,6 @@
 import React from 'react';
 import { 
   LayoutDashboard, 
-  Users, 
   Building2, 
   CheckCircle2, 
   Clock, 
@@ -33,19 +32,23 @@ export const Sidebar = ({ role, activeTab, setActiveTab, collapsed, setCollapsed
   const menuItems = role === 'admin' ? adminMenuItems : managerMenuItems;
 
   return (
-    <aside style={{
-      width: collapsed ? '72px' : '250px',
-      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-      display: 'flex',
-      flexDirection: 'column',
-      height: 'calc(100vh - 67px)',
-      position: 'sticky',
-      top: '67px',
-      background: '#ffffff',
-      borderRight: '1px solid var(--border-color)',
-      padding: '20px 12px',
-      zIndex: 30
-    }}>
+    <aside 
+      aria-label="Main Navigation Sidebar"
+      style={{
+        width: collapsed ? '72px' : '250px',
+        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+        display: 'flex',
+        flexDirection: 'column',
+        height: 'calc(100vh - 67px)',
+        position: 'sticky',
+        top: '67px',
+        background: '#ffffff',
+        borderRight: '1px solid var(--border-color)',
+        padding: '20px 12px',
+        zIndex: 30
+      }}
+      className="hidden md:flex"
+    >
       {/* Collapse Toggle */}
       <div style={{
         display: 'flex',
@@ -68,19 +71,12 @@ export const Sidebar = ({ role, activeTab, setActiveTab, collapsed, setCollapsed
         <button
           type="button"
           onClick={() => setCollapsed(!collapsed)}
-          className="btn-secondary"
-          style={{
-            padding: '4px',
-            borderRadius: '50%',
-            width: '28px',
-            height: '28px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
+          className="btn-secondary !p-1.5 !min-h-[28px] !w-7 !h-7 !rounded-full text-slate-600 hover:text-slate-900"
           title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          aria-label={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          aria-expanded={!collapsed}
         >
-          {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          {collapsed ? <ChevronRight size={14} aria-hidden="true" /> : <ChevronLeft size={14} aria-hidden="true" />}
         </button>
       </div>
 
@@ -106,7 +102,7 @@ export const Sidebar = ({ role, activeTab, setActiveTab, collapsed, setCollapsed
       )}
 
       {/* Menu List */}
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+      <nav aria-label="Dashboard views" style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
         {menuItems.map((item) => {
           const IconComponent = item.icon;
           const isActive = activeTab === item.id;
@@ -116,6 +112,8 @@ export const Sidebar = ({ role, activeTab, setActiveTab, collapsed, setCollapsed
               key={item.id}
               type="button"
               onClick={() => setActiveTab(item.id)}
+              aria-current={isActive ? 'page' : undefined}
+              title={item.label}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -138,6 +136,7 @@ export const Sidebar = ({ role, activeTab, setActiveTab, collapsed, setCollapsed
                 transition: 'all 0.15s ease',
                 fontSize: '0.88rem'
               }}
+              className="focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1"
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <IconComponent 
@@ -145,6 +144,7 @@ export const Sidebar = ({ role, activeTab, setActiveTab, collapsed, setCollapsed
                   color={isActive 
                     ? (role === 'admin' ? '#0284c7' : '#059669') 
                     : 'var(--text-muted)'} 
+                  aria-hidden="true"
                 />
                 {!collapsed && <span>{item.label}</span>}
               </div>
@@ -183,3 +183,4 @@ export const Sidebar = ({ role, activeTab, setActiveTab, collapsed, setCollapsed
     </aside>
   );
 };
+
