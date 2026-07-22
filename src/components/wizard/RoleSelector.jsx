@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Stethoscope, Building2, Building, FlaskConical, UserCheck, ArrowRight, ShieldCheck } from 'lucide-react';
+import { User, Stethoscope, Building2, Building, FlaskConical, UserCheck, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
 const roles = [
   {
