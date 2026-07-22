@@ -247,7 +247,7 @@ const LoginPageContent = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-5 px-8 bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-black text-base sm:text-lg rounded-[5px] shadow-lg shadow-sky-500/25 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-3 focus-visible:ring-4 focus-visible:ring-sky-500/20 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full max-w-[80%] mx-auto py-[5px] px-6 bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-black text-base sm:text-lg rounded-[5px] shadow-lg shadow-sky-500/25 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-3 focus-visible:ring-4 focus-visible:ring-sky-500/20 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
             >
               <span>{isSubmitting ? 'Authenticating Staff...' : 'Sign In to Staff Portal'}</span>
               <ArrowRight className="w-5 h-5" aria-hidden="true" />
@@ -299,13 +299,13 @@ const LoginPageContent = () => {
 
               {/* Status Alert Banners */}
               {errorMessage && (
-                <div className="p-5 bg-rose-50 border border-rose-200 text-rose-700 rounded-[5px] text-sm font-bold flex items-center gap-3 shadow-xs">
+                <div className="p-4 max-w-[80%] mx-auto bg-rose-50 border border-rose-200 text-rose-700 rounded-[5px] text-sm font-bold flex items-center gap-3 shadow-xs">
                   <AlertCircle className="w-5 h-5 shrink-0 text-rose-600" aria-hidden="true" />
                   <span>{errorMessage}</span>
                 </div>
               )}
               {successMessage && (
-                <div className="p-5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-[5px] text-sm font-bold flex items-center gap-3 shadow-xs">
+                <div className="p-4 max-w-[80%] mx-auto bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-[5px] text-sm font-bold flex items-center gap-3 shadow-xs">
                   <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" aria-hidden="true" />
                   <span>{successMessage}</span>
                 </div>
@@ -314,7 +314,7 @@ const LoginPageContent = () => {
               <div className="space-y-8">
                 {/* Option 1: Fast Google OAuth */}
                 <div className="p-7 bg-gradient-to-br from-slate-50 to-sky-50/50 border border-slate-200/90 rounded-[5px] text-center space-y-4 shadow-xs">
-                  <div className="inline-flex items-center gap-2 px-4.5 py-1.5 rounded-[5px] bg-white text-sky-800 text-xs font-black border border-sky-200 shadow-xs">
+                  <div className="inline-flex items-center justify-center gap-2 max-w-[80%] mx-auto py-[5px] px-4 rounded-[5px] bg-white text-sky-800 text-xs font-black border border-sky-200 shadow-xs">
                     <Sparkles className="w-4 h-4 text-sky-600" aria-hidden="true" />
                     <span>Option 1: Fast Google OAuth Sign-In</span>
                   </div>
@@ -326,15 +326,15 @@ const LoginPageContent = () => {
                 </div>
 
                 {/* Divider */}
-                <div className="flex items-center text-slate-400 text-xs py-1">
+                <div className="flex items-center text-slate-400 text-xs py-1 max-w-[80%] mx-auto">
                   <div className="flex-1 border-b border-slate-200" />
                   <span className="px-5 font-black uppercase tracking-wider text-xs text-slate-500">Or Sign In with Email</span>
                   <div className="flex-1 border-b border-slate-200" />
                 </div>
 
                 {/* Option 2: Unified Email / Password Sign In */}
-                <form onSubmit={handleUnifiedLoginSubmit} className="space-y-7">
-                  <div>
+                <form onSubmit={handleUnifiedLoginSubmit} className="space-y-7 flex flex-col items-center">
+                  <div className="w-full max-w-[80%]">
                     <label htmlFor="user-email" className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider block mb-2.5">
                       Email Address
                     </label>
@@ -345,7 +345,7 @@ const LoginPageContent = () => {
                       <input
                         id="user-email"
                         type="email"
-                        className="w-full pl-12 pr-6 py-4.5 bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-300 rounded-[5px] text-base sm:text-lg font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 transition-all shadow-xs"
+                        className="w-full pl-12 pr-6 py-[12px] bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-300 rounded-[5px] text-base sm:text-lg font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 transition-all shadow-xs"
                         value={loginIdentifier}
                         onChange={(e) => setLoginIdentifier(e.target.value)}
                         placeholder="user@gmail.com or facility@domain.com"
@@ -354,7 +354,7 @@ const LoginPageContent = () => {
                     </div>
                   </div>
 
-                  <div>
+                  <div className="w-full max-w-[80%]">
                     <label htmlFor="user-password" className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider block mb-2.5">
                       Password
                     </label>
@@ -365,7 +365,7 @@ const LoginPageContent = () => {
                       <input
                         id="user-password"
                         type="password"
-                        className="w-full pl-12 pr-6 py-4.5 bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-300 rounded-[5px] text-base sm:text-lg font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 transition-all shadow-xs"
+                        className="w-full pl-12 pr-6 py-[12px] bg-slate-50/70 hover:bg-white focus:bg-white border border-slate-300 rounded-[5px] text-base sm:text-lg font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-sky-500/20 focus:border-sky-500 transition-all shadow-xs"
                         value={loginPassword}
                         onChange={(e) => setLoginPassword(e.target.value)}
                         placeholder="Enter your account password"
@@ -377,7 +377,7 @@ const LoginPageContent = () => {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-5 px-8 bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-black text-base sm:text-lg rounded-[5px] shadow-lg shadow-sky-500/25 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-3 focus-visible:ring-4 focus-visible:ring-sky-500/20 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                    className="w-full max-w-[80%] mx-auto py-[5px] px-8 bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-black text-base sm:text-lg rounded-[5px] shadow-lg shadow-sky-500/25 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-3 focus-visible:ring-4 focus-visible:ring-sky-500/20 focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <span>{isSubmitting ? 'Authenticating Account...' : 'Sign In'}</span>
                     <ArrowRight className="w-5 h-5" aria-hidden="true" />

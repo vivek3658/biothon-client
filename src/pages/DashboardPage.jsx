@@ -30,10 +30,14 @@ export const DashboardPage = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Strict role classification
-  const isAdminOrManager = user?.role === 'admin' || user?.role === 'manager' || user?.entityModel === 'Employee';
-  const isReceptionist = user?.role === 'receptionist';
-  const isOrgRole = !isAdminOrManager && !isReceptionist && (user?.entityModel === 'Organization' || ['hospital', 'clinic', 'laboratory', 'pharmacy', 'other'].includes(user?.role));
-  const isUserRole = !isAdminOrManager && !isOrgRole && !isReceptionist && (user?.entityModel === 'User' || user?.role === 'patient' || user?.role === 'doctor');
+  const roleLower = (user?.role || '').toLowerCase();
+  const isAdminOrManager = roleLower === 'admin' || roleLower === 'manager' || user?.entityModel === 'Employee';
+  const isReceptionist = roleLower === 'receptionist';
+  const isOrgRole = !isAdminOrManager && !isReceptionist && (
+    user?.entityModel === 'Organization' || 
+    ['hospital', 'clinic', 'laboratory', 'pharmacy', 'organization', 'org', 'facility', 'other'].includes(roleLower)
+  );
+  const isUserRole = !isAdminOrManager && !isOrgRole && !isReceptionist;
 
   const [stats, setStats] = useState({
     managersCount: 0,

@@ -51,7 +51,7 @@ export const RoleSelector = ({ selectedRole, onSelectRole, onProceed }) => {
     <div className="w-full max-w-7xl mx-auto p-10 sm:p-14 md:p-16 bg-white/95 backdrop-blur-2xl rounded-[5px] border border-slate-200/90 shadow-2xl shadow-sky-500/10 space-y-10 transition-all">
       {/* Title Section */}
       <div className="text-center space-y-3.5">
-        <div className="inline-flex items-center gap-2 px-5 py-2 rounded-[5px] bg-gradient-to-r from-sky-50 to-blue-50 text-sky-800 text-xs font-black uppercase tracking-wider border border-sky-200 shadow-xs mx-auto">
+        <div className="inline-flex items-center justify-center gap-2 max-w-[80%] mx-auto px-5 py-[5px] rounded-[5px] bg-gradient-to-r from-sky-50 to-blue-50 text-sky-800 text-xs font-black uppercase tracking-wider border border-sky-200 shadow-xs">
           <ShieldCheck className="w-4.5 h-4.5 text-sky-600" aria-hidden="true" />
           <span>Step 1: Healthcare Entity Selection</span>
         </div>
@@ -96,7 +96,7 @@ export const RoleSelector = ({ selectedRole, onSelectRole, onProceed }) => {
               </p>
 
               {isSelected && (
-                <div className="mt-4 text-xs font-black text-sky-800 bg-white/90 px-4 py-1.5 rounded-[5px] border border-sky-300 shadow-xs flex items-center gap-1.5">
+                <div className="mt-4 text-xs font-black text-sky-800 bg-white/90 px-3.5 py-[5px] rounded-[5px] border border-sky-300 shadow-xs flex items-center justify-center gap-1.5 max-w-[80%] mx-auto">
                   <CheckCircle2 className="w-4 h-4 text-sky-600" aria-hidden="true" />
                   <span>Selected</span>
                 </div>
@@ -111,7 +111,7 @@ export const RoleSelector = ({ selectedRole, onSelectRole, onProceed }) => {
         <button
           type="button"
           onClick={onProceed}
-          className="inline-flex items-center gap-3 px-12 py-5 bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-black text-lg sm:text-xl rounded-[5px] shadow-xl shadow-sky-500/25 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all focus-visible:ring-4 focus-visible:ring-sky-500/20 focus-visible:ring-offset-2 cursor-pointer"
+          className="inline-flex items-center justify-center gap-3 w-full max-w-[80%] mx-auto py-[5px] px-8 bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-black text-base sm:text-lg rounded-[5px] shadow-xl shadow-sky-500/25 hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all focus-visible:ring-4 focus-visible:ring-sky-500/20 focus-visible:ring-offset-2 cursor-pointer"
         >
           <span>Continue with {roles.find(r => r.id === selectedRole)?.title} Registration</span>
           <ArrowRight className="w-6 h-6" aria-hidden="true" />

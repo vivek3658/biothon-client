@@ -49,17 +49,18 @@ export const AuthProvider = ({ children }) => {
       }
 
       // 2. Check Organization Auth if token entityModel is Organization
-      if (payload?.entityModel === 'Organization' || ['hospital', 'clinic', 'laboratory', 'pharmacy'].includes(payload?.role)) {
+      const payloadRoleLower = (payload?.role || '').toLowerCase();
+      if (payload?.entityModel === 'Organization' || ['hospital', 'clinic', 'laboratory', 'pharmacy', 'organization', 'org', 'facility'].includes(payloadRoleLower)) {
         try {
           const { data } = await apiClient.get('/org/me');
-          if (data?.account && data.account.profile && data.account.entityModel === 'Organization') {
+          if (data?.account) {
             setUser({
               id: data.account.accountId || data.account._id,
               username: data.account.profile?.name || data.account.email,
-              role: data.account.role || 'hospital',
+              role: data.account.role || payloadRoleLower || 'hospital',
               entityModel: 'Organization'
             });
-            setUserProfile(data.account.profile);
+            setUserProfile(data.account.profile || {});
             setLoading(false);
             return;
           }
